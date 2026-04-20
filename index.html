@@ -1,0 +1,2411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Helping Hands & Heart — Scheduler</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;color:#1a1a1a;background:#f5f4f0;min-height:100vh}
+
+/* LOGIN SCREEN */
+#login-screen{position:fixed;inset:0;background:#085041;display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:0}
+.login-box{background:#fff;border-radius:16px;padding:36px 40px;width:100%;max-width:360px;box-shadow:0 8px 40px #0003;text-align:center}
+.login-logo{width:56px;height:56px;border-radius:50%;background:#085041;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;margin:0 auto 16px}
+.login-title{font-size:20px;font-weight:700;color:#085041;margin-bottom:4px}
+.login-sub{font-size:13px;color:#888;margin-bottom:24px}
+.pin-dots{display:flex;gap:12px;justify-content:center;margin-bottom:20px}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid #ddd;background:#fff;transition:all .2s}
+.pin-dot.filled{background:#085041;border-color:#085041}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.pin-btn{padding:16px;border:1px solid #e8e6e0;border-radius:10px;background:#fff;font-size:18px;font-weight:600;cursor:pointer;transition:all .15s;color:#1a1a1a}
+.pin-btn:hover{background:#f0f9f5;border-color:#085041}
+.pin-btn:active{transform:scale(0.95);background:#e1f5ee}
+.pin-btn.wide{grid-column:span 2}
+.pin-err{color:#c0392b;font-size:13px;min-height:20px;margin-top:-8px;margin-bottom:8px}
+.role-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.role-admin{background:#e1f5ee;color:#085041}
+.role-staff{background:#e6f1fb;color:#0c447c}
+
+/* TOPBAR */
+.topbar{background:#085041;color:#fff;padding:14px 24px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px #0004}
+.logo{width:38px;height:38px;border-radius:50%;background:#1D9E75;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0}
+.topbar-title{font-size:16px;font-weight:600}
+.topbar-sub{font-size:12px;opacity:.75}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.sync-indicator{font-size:11px;opacity:.75;display:flex;align-items:center;gap:5px}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#4ade80}
+.sync-dot.syncing{background:#fbbf24;animation:pulse 1s infinite}
+.sync-dot.offline{background:#f87171}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.logout-btn{background:rgba(255,255,255,.15);border:none;color:#fff;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600}
+.logout-btn:hover{background:rgba(255,255,255,.25)}
+
+/* MAIN */
+.container{max-width:1100px;margin:0 auto;padding:20px 16px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat{background:#fff;border-radius:10px;padding:14px 18px;border:1px solid #e8e6e0}
+.stat-label{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.stat-val{font-size:26px;font-weight:700;color:#085041}
+.stat-val.warn{color:#c0392b}
+
+/* TABS */
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:18px;background:#fff;border-radius:10px;padding:6px;border:1px solid #e8e6e0}
+.tab{padding:8px 14px;border:none;background:none;cursor:pointer;font-size:13px;color:#666;border-radius:7px;transition:all .15s}
+.tab.active{background:#085041;color:#fff;font-weight:600}
+.tab:hover:not(.active){background:#f0f9f5;color:#085041}
+.tab.admin-only{display:none}.tab.admin-show{display:block}
+.panel{display:none}.panel.active{display:block}
+
+/* COMMON */
+.search{width:100%;padding:9px 14px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a;font-size:13px;margin-bottom:12px;outline:none}
+.search:focus{border-color:#085041;box-shadow:0 0 0 3px #08504120}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.flt{padding:5px 14px;border:1px solid #ddd;border-radius:20px;background:#fff;cursor:pointer;font-size:12px;color:#666;transition:all .15s}
+.flt.active{background:#085041;color:#fff;border-color:#085041;font-weight:600}
+.card{background:#fff;border:1px solid #e8e6e0;border-radius:10px;padding:12px 16px;margin-bottom:8px}
+.card-header{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.av-rca{background:#e1f5ee;color:#085041}
+.av-comp{background:#e6f1fb;color:#0c447c}
+.av-hold{background:#fde8e8;color:#791f1f}
+.av-cpi{background:#faeeda;color:#633806}
+.cname{font-weight:600;font-size:14px}
+.csub{font-size:12px;color:#888;margin-top:1px}
+.badge{display:inline-block;font-size:11px;padding:2px 9px;border-radius:10px;font-weight:600}
+.b-rca{background:#e1f5ee;color:#085041}
+.b-comp{background:#e6f1fb;color:#0c447c}
+.b-hold{background:#fde8e8;color:#791f1f}
+.b-cpi{background:#faeeda;color:#633806}
+.b-warn{background:#fff3cd;color:#856404}
+.note{font-size:12px;color:#888;margin-top:6px;padding-top:6px;border-top:1px solid #f0f0f0;font-style:italic}
+.svc-badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:8px;font-weight:600;margin-left:6px}
+.svc-c{background:#e6f1fb;color:#0c447c}
+.svc-cl{background:#f1efe8;color:#444}
+.svc-f{background:#faeeda;color:#633806}
+.svc-pgt{background:#eeedfe;color:#3c3489}
+.edit-btn{background:none;border:1px solid #ddd;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;color:#666;margin-left:auto;flex-shrink:0}
+.edit-btn:hover{background:#f0f9f5;border-color:#085041;color:#085041}
+.del-btn{background:none;border:none;cursor:pointer;color:#c0392b;font-size:18px;line-height:1;padding:0 3px;font-weight:700}
+
+/* WEEKLY GRID */
+.week-wrap{overflow-x:auto}
+.wgrid{display:grid;grid-template-columns:130px repeat(7,minmax(90px,1fr));gap:1px;background:#ddd;border-radius:10px;overflow:hidden;font-size:11px;min-width:800px}
+.wgh{background:#f5f4f0;padding:7px 5px;font-weight:700;font-size:11px;color:#666;text-align:center;text-transform:uppercase;letter-spacing:.03em}
+.wgn{background:#f5f4f0;padding:6px 10px;font-weight:600;font-size:12px;display:flex;align-items:center}
+.wgc{background:#fff;padding:3px 4px;min-height:38px}
+.shi{background:#e1f5ee;color:#085041;border-radius:3px;padding:1px 5px;margin-bottom:2px;font-size:10px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* AVAILABILITY */
+.agrid{display:grid;gap:1px;background:#ddd;border-radius:10px;overflow:hidden;min-width:700px}
+.agh{background:#f5f4f0;padding:6px 4px;font-size:11px;font-weight:700;color:#666;text-align:center;text-transform:uppercase}
+.agn{background:#f5f4f0;padding:5px 10px;font-size:12px;font-weight:500}
+.agc{background:#fff;padding:2px 3px;text-align:center}
+.av-sel{width:100%;font-size:11px;border:none;background:transparent;cursor:pointer;padding:4px 1px;color:#1a1a1a;text-align:center;border-radius:3px}
+.av-AM{background:#ddeeff}.av-PM{background:#fff3cd}.av-Full{background:#d4edda}.av-Unavail{background:#fde8e8}
+
+/* FORMS */
+.form-box{background:#fff;border:1px solid #e8e6e0;border-radius:10px;padding:20px;margin-bottom:14px}
+.form-title{font-weight:700;font-size:15px;margin-bottom:16px;color:#085041;display:flex;align-items:center;justify-content:space-between}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:12px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.fg input,.fg select,.fg textarea{padding:8px 12px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a;font-size:13px;font-family:inherit;outline:none;transition:border .15s}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:#085041;box-shadow:0 0 0 3px #08504115}
+.fg textarea{min-height:65px;resize:vertical}
+.btn{padding:9px 20px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;transition:all .15s;border:none}
+.btn-primary{background:#085041;color:#fff}.btn-primary:hover{background:#0f6e56}
+.btn-secondary{background:#fff;color:#666;border:1px solid #ddd}.btn-secondary:hover{background:#f5f4f0}
+.btn-danger{background:#fde8e8;color:#c0392b;border:1px solid #f5c6c6}.btn-danger:hover{background:#f5c6c6}
+.btn-sm{padding:5px 12px;font-size:12px}
+.success{background:#d4edda;color:#085041;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:12px;display:none;font-weight:500}
+.ns-item{background:#f5f4f0;border-radius:8px;padding:9px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:flex-start}
+
+/* SIN */
+.sin-warn{background:#fde8e8;border:1px solid #f5c6c6;border-radius:10px;padding:12px 16px;margin-bottom:8px}
+.sin-ok{background:#fff;border:1px solid #e8e6e0;border-radius:10px;padding:12px 16px;margin-bottom:6px}
+
+/* PRINT */
+.print-ctrl{display:flex;gap:10px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap}
+.print-card{background:#fff;border:1px solid #e8e6e0;border-radius:10px;padding:20px}
+.ph{border-bottom:2px solid #085041;padding-bottom:12px;margin-bottom:16px}
+.ph-name{font-size:20px;font-weight:700;color:#085041}
+.ph-sub{font-size:12px;color:#888;margin-top:2px}
+.pd{margin-bottom:14px}
+.pd-title{font-weight:700;font-size:13px;color:#555;margin-bottom:6px;padding:5px 0;border-bottom:1px solid #eee;text-transform:uppercase;letter-spacing:.04em}
+.ps{display:flex;gap:12px;padding:6px 0;border-bottom:1px solid #f5f5f5;font-size:13px}
+.ps:last-child{border-bottom:none}
+.pt{min-width:70px;color:#888;font-size:12px}
+.no-s{color:#aaa;font-size:12px;font-style:italic}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:#0006;z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:#fff;border-radius:14px;padding:24px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px #0003}
+.modal-title{font-size:16px;font-weight:700;color:#085041;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center}
+.modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:#888;line-height:1}
+.modal-close:hover{color:#1a1a1a}
+
+/* SETUP */
+.setup-banner{background:#fff3cd;border:1px solid #ffc107;border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:13px}
+.setup-banner a{color:#085041;font-weight:700;cursor:pointer;text-decoration:underline}
+
+/* LOADING */
+.loading{text-align:center;padding:40px;color:#888;font-size:13px}
+.spinner{width:28px;height:28px;border:3px solid #e8e6e0;border-top-color:#085041;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media print{
+  #login-screen,.topbar,.tabs,.filters,.print-ctrl,.btn,.del-btn,.edit-btn,.modal-overlay{display:none!important}
+  .panel{display:none!important}
+  #printview{display:block!important}
+  body{background:#fff}
+  .print-card{border:none;padding:0}
+}
+@media(max-width:600px){
+  .frow,.frow3{grid-template-columns:1fr}
+  .stats{grid-template-columns:1fr 1fr}
+  .topbar{padding:10px 14px}
+}
+
+/* PROGRESS NOTES */
+.notes-btn{background:none;border:1px solid #085041;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;color:#085041;margin-left:4px;flex-shrink:0}
+.notes-btn:hover{background:#e1f5ee}
+.notes-panel{display:none;margin-top:10px;border-top:1px solid #f0f0f0;padding-top:10px}
+.notes-panel.open{display:block}
+.note-entry{background:#f9f9f7;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:12px}
+.note-date{font-size:11px;color:#aaa;margin-bottom:2px}
+.note-text{color:#333;line-height:1.5}
+.note-author{font-size:10px;color:#bbb;margin-top:2px}
+.add-note-row{display:flex;gap:6px;margin-top:8px}
+.add-note-row textarea{flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;font-family:inherit;resize:none;height:56px;outline:none}
+.add-note-row textarea:focus{border-color:#085041}
+.add-note-row button{padding:6px 14px;background:#085041;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;align-self:flex-end}
+
+/* SCHEDULE EDITING */
+.wgc{cursor:pointer;position:relative}
+.wgc:hover{background:#f0f9f5}
+.wgc.admin-cell:hover::after{content:'+';position:absolute;bottom:2px;right:3px;font-size:10px;color:#085041;opacity:0.5}
+.shi-wrap{display:flex;align-items:center;gap:2px;margin-bottom:2px}
+.shi-del{background:none;border:none;cursor:pointer;color:#c0392b;font-size:10px;line-height:1;padding:0 1px;flex-shrink:0;display:none}
+.shi-wrap:hover .shi-del{display:block}
+.schedule-modal{background:#fff;border-radius:14px;padding:20px;width:100%;max-width:420px;max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px #0003}
+.schedule-modal-title{font-size:15px;font-weight:700;color:#085041;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+.client-pick-list{max-height:300px;overflow-y:auto;border:1px solid #eee;border-radius:8px}
+.client-pick-item{padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:8px}
+.client-pick-item:last-child{border-bottom:none}
+.client-pick-item:hover{background:#f0f9f5}
+.client-pick-item.selected{background:#e1f5ee;font-weight:600}
+.pick-search{width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;margin-bottom:10px;outline:none}
+.pick-search:focus{border-color:#085041}
+.add-caregiver-row{display:flex;gap:8px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap}
+
+/* MONTHLY SCHEDULE */
+.cal-wrap{overflow-x:auto;margin-bottom:16px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(36px,1fr));gap:2px;min-width:280px}
+.cal-head{background:#085041;color:#fff;padding:6px 4px;font-size:11px;font-weight:700;text-align:center;border-radius:4px}
+.cal-day{min-height:52px;border:1px solid #e8e6e0;border-radius:6px;padding:3px;position:relative;background:#fff;cursor:pointer;transition:all .15s}
+.cal-day:hover{border-color:#085041;background:#f0f9f5}
+.cal-day.empty{background:transparent;border:none;cursor:default}
+.cal-day.has-visit{background:#e1f5ee;border-color:#9fe1cb}
+.cal-day.has-visit:hover{background:#c8edd9}
+.cal-day.cancelled{background:#fde8e8;border-color:#f5c6c6}
+.cal-day.today{border:2px solid #085041}
+.cal-date{font-size:11px;font-weight:700;color:#333;line-height:1}
+.cal-visit{font-size:9px;color:#085041;margin-top:2px;line-height:1.3;font-weight:600}
+.cal-cancel{font-size:9px;color:#c0392b;margin-top:2px;line-height:1.3;text-decoration:line-through}
+.month-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.month-nav button{background:none;border:1px solid #ddd;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px;font-weight:600;color:#085041}
+.month-nav button:hover{background:#f0f9f5}
+.month-title{font-size:15px;font-weight:700;color:#085041}
+.visit-legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;align-items:center}
+.legend-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+.print-month{background:#fff;padding:20px}
+.print-month-header{border-bottom:2px solid #085041;padding-bottom:10px;margin-bottom:16px}
+.print-visit-row{display:flex;gap:12px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px}
+.print-visit-row.cancelled{color:#aaa;text-decoration:line-through}
+.day-modal-title{font-size:15px;font-weight:700;color:#085041;margin-bottom:12px}
+.day-visit-card{background:#e1f5ee;border-radius:8px;padding:10px 14px;margin-bottom:8px}
+.day-cancelled-card{background:#fde8e8;border-radius:8px;padding:10px 14px;margin-bottom:8px;text-decoration:line-through;color:#aaa}
+
+/* SYNC INDICATORS */
+.shi-cancelled{background:#fde8e8;color:#c0392b;border-radius:3px;padding:1px 5px;margin-bottom:2px;font-size:10px;line-height:1.5;text-decoration:line-through;opacity:0.8}
+.shi-wrap-cancelled .shi{background:#fde8e8;color:#c0392b;text-decoration:line-through}
+.unscheduled-warning{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:8px 12px;font-size:12px;color:#856404;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.unscheduled-warning strong{font-weight:700}
+.sync-badge{font-size:9px;background:#fde8e8;color:#c0392b;border-radius:3px;padding:1px 4px;margin-left:4px;font-weight:700;vertical-align:middle}
+.warning-banner{background:#fff3cd;border:1px solid #ffc107;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#856404;display:none}
+.warning-banner strong{font-weight:700;display:block;margin-bottom:6px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">HH</div>
+    <div class="login-title">Helping Hands & Heart</div>
+    <div class="login-sub">Enter your PIN to continue</div>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+    </div>
+    <div class="pin-err" id="pin-err"></div>
+    <div class="pin-pad">
+      <button class="pin-btn" onclick="pinPress('1')">1</button>
+      <button class="pin-btn" onclick="pinPress('2')">2</button>
+      <button class="pin-btn" onclick="pinPress('3')">3</button>
+      <button class="pin-btn" onclick="pinPress('4')">4</button>
+      <button class="pin-btn" onclick="pinPress('5')">5</button>
+      <button class="pin-btn" onclick="pinPress('6')">6</button>
+      <button class="pin-btn" onclick="pinPress('7')">7</button>
+      <button class="pin-btn" onclick="pinPress('8')">8</button>
+      <button class="pin-btn" onclick="pinPress('9')">9</button>
+      <button class="pin-btn" onclick="pinPress('0')">0</button>
+      <button class="pin-btn" onclick="pinBack()">⌫</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+<div class="topbar">
+  <div class="logo">HH</div>
+  <div>
+    <div class="topbar-title">Helping Hands & Heart</div>
+    <div class="topbar-sub" id="role-label">Loading...</div>
+  </div>
+  <div class="topbar-right">
+    <div class="sync-indicator"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">Connecting...</span></div>
+    <button class="logout-btn" onclick="logout()">Lock</button>
+  </div>
+</div>
+
+<div class="container">
+  <div id="setup-banner" class="setup-banner" style="display:none">
+    Firebase not connected — data is stored locally only. <a onclick="showSetup()">Click here to connect cloud sync</a> (takes 5 minutes, free).
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Caregivers</div><div class="stat-val" id="stat-cg">—</div></div>
+    <div class="stat"><div class="stat-label">Active clients</div><div class="stat-val" id="stat-cl">—</div></div>
+    <div class="stat"><div class="stat-label">SSS clients</div><div class="stat-val" id="stat-sss">—</div></div>
+    <div class="stat"><div class="stat-label">SIN alerts</div><div class="stat-val warn" id="stat-sin">—</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('caregivers',this)">Caregivers</button>
+    <button class="tab" onclick="showTab('clients',this)">Clients</button>
+    <button class="tab" onclick="showTab('sss',this)">SSS Clients</button>
+    <button class="tab" onclick="showTab('pgt',this)">PGT Clients</button>
+    <button class="tab" onclick="showTab('private',this)">Private Clients</button>
+    <button class="tab" onclick="showTab('notes',this)">Progress notes</button>
+    <button class="tab" onclick="showTab('schedule',this)">Weekly schedule</button>
+    <button class="tab" onclick="showTab('sin',this)">SIN / compliance</button>
+    <button class="tab" onclick="showTab('availability',this)">Availability</button>
+    <button class="tab" onclick="showTab('monthly',this)">Monthly schedules</button>
+    <button class="tab admin-only" id="tab-addclient" onclick="showTab('addclient',this)">+ Add client</button>
+    <button class="tab admin-only" id="tab-addcg" onclick="showTab('addcg',this)">+ Add caregiver</button>
+    <button class="tab" onclick="showTab('printview',this)">Print</button>
+    <button class="tab admin-only" id="tab-settings" onclick="showTab('settings',this)">Settings</button>
+  </div>
+
+  <!-- CAREGIVERS -->
+  <div id="caregivers" class="panel active">
+    <div class="filters">
+      <button class="flt active" onclick="filterCG('all',this)">All</button>
+      <button class="flt" onclick="filterCG('RCA',this)">RCA</button>
+      <button class="flt" onclick="filterCG('Companion',this)">Companion</button>
+      <button class="flt" onclick="filterCG('CPI',this)">CPI</button>
+      <button class="flt" onclick="filterCG('HOLD',this)">On hold</button>
+    </div>
+    <input class="search" id="cg-search" placeholder="Search by name, area, or notes..." oninput="renderCG()">
+    <div id="cg-list"></div>
+  </div>
+
+  <!-- CLIENTS -->
+  <div id="clients" class="panel">
+    <div class="filters">
+      <button class="flt active" onclick="filterCL('all',this)">All</button>
+      <button class="flt" onclick="filterCL('Private',this)">Private</button>
+      <button class="flt" onclick="filterCL('PGT',this)">PGT</button>
+      <button class="flt" onclick="filterCL('SSS',this)">SSS</button>
+    </div>
+    <input class="search" id="cl-search" placeholder="Search by client or caregiver..." oninput="renderCL()">
+    <div id="cl-list"></div>
+  </div>
+
+
+
+
+  <!-- MONTHLY SCHEDULES -->
+  <div id="monthly" class="panel">
+    <div style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div class="fg" style="flex:1;min-width:200px">
+        <label style="font-size:12px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Select client</label>
+        <select id="monthly-client-select" onchange="renderMonthly()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a;font-size:13px;outline:none"></select>
+      </div>
+      <button class="btn btn-primary" onclick="printMonthly()">Print schedule</button>
+    </div>
+    <div id="monthly-warning" class="warning-banner"></div>
+    <div id="monthly-content"></div>
+  </div>
+  <!-- PGT CLIENTS -->
+  <div id="pgt" class="panel">
+    <div style="background:#eeedfe;border:1px solid #c5c0f5;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px">
+      <strong style="color:#3c3489">Public Guardian & Trustee clients</strong> &nbsp;·&nbsp; Invoices submitted to PGT office &nbsp;·&nbsp; Work order number required on all invoices
+    </div>
+    <input class="search" id="pgt-search" placeholder="Search PGT clients by name, caregiver, or address..." oninput="renderPGT()">
+    <div id="pgt-list"></div>
+  </div>
+
+  <!-- PRIVATE CLIENTS -->
+  <div id="private" class="panel">
+    <div style="background:#e1f5ee;border:1px solid #9fe1cb;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px">
+      <strong style="color:#085041">Private pay clients</strong> &nbsp;·&nbsp; Invoiced directly to client or family &nbsp;·&nbsp; E-transfer: karen@handsandheart.ca
+    </div>
+    <input class="search" id="private-search" placeholder="Search Private clients by name, caregiver, or address..." oninput="renderPrivate()">
+    <div id="private-list"></div>
+  </div>
+  <!-- PROGRESS NOTES -->
+  <div id="notes" class="panel">
+    <div style="margin-bottom:12px;font-size:13px;color:#666">Tap a client to add or view progress notes. All notes are date-stamped and synced.</div>
+    <input class="search" id="notes-search" placeholder="Search clients..." oninput="renderNotesClientList()">
+    <div id="notes-client-list"></div>
+  </div>
+  <!-- SSS -->
+  <div id="sss" class="panel">
+    <div style="background:#eeedfe;border:1px solid #c5c0f5;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px">
+      <strong style="color:#3c3489">Senior Services Society</strong> &nbsp;·&nbsp; 750 Carnarvon St, New Westminster &nbsp;·&nbsp; Paul Campbell: <a href="tel:6045206621" style="color:#3c3489">604-520-6621</a> / <a href="tel:6047548262" style="color:#3c3489">604-754-8262</a> &nbsp;·&nbsp; E-transfer: karen@handsandheart.ca
+    </div>
+    <input class="search" id="sss-search" placeholder="Search SSS clients..." oninput="renderSSS()">
+    <div id="sss-list"></div>
+  </div>
+
+  <!-- WEEKLY SCHEDULE -->
+  <div id="schedule" class="panel">
+    <div class="week-wrap"><div id="week-grid"></div></div>
+  </div>
+
+  <!-- SIN -->
+  <div id="sin" class="panel"><div id="sin-list"></div></div>
+
+  <!-- AVAILABILITY -->
+  <div id="availability" class="panel">
+    <div style="margin-bottom:10px;font-size:13px;color:#666">Changes sync automatically across all devices.</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;align-items:center">
+      <span style="color:#888">Key:</span>
+      <span style="background:#ddeeff;color:#0c447c;padding:2px 10px;border-radius:6px;font-weight:600">AM</span>
+      <span style="background:#fff3cd;color:#856404;padding:2px 10px;border-radius:6px;font-weight:600">PM</span>
+      <span style="background:#d4edda;color:#085041;padding:2px 10px;border-radius:6px;font-weight:600">Full</span>
+      <span style="background:#fde8e8;color:#791f1f;padding:2px 10px;border-radius:6px;font-weight:600">Unavail</span>
+    </div>
+    <div class="week-wrap"><div id="avail-grid"></div></div>
+  </div>
+
+  <!-- ADD CLIENT (admin only) -->
+  <div id="addclient" class="panel">
+    <div class="success" id="cl-success">Client added! Synced to all devices.</div>
+    <div class="form-box">
+      <div class="form-title">Add new client</div>
+      <div class="frow">
+        <div class="fg"><label>Client name</label><input type="text" id="fc-name" placeholder="e.g. Jane Smith"></div>
+        <div class="fg"><label>Funding type</label>
+          <select id="fc-funding"><option>Private</option><option>PGT</option><option>SSS</option><option>SSS / Private</option></select>
+        </div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label>Assigned caregiver</label><select id="fc-caregiver"></select></div>
+        <div class="fg"><label>Backup caregiver</label><select id="fc-backup"><option value="">— None —</option></select></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label>Service type</label>
+          <select id="fc-svc"><option>Companion</option><option>Personal Care</option><option>Cleaning</option><option>Personal Care – Feeding</option><option>Companion + Personal Care</option><option>Cleaning / Companion</option></select>
+        </div>
+        <div class="fg"><label>Frequency</label><input type="text" id="fc-freq" placeholder="e.g. Weekly, Twice a week"></div>
+      </div>
+      <div class="frow3">
+        <div class="fg"><label>Start time</label><input type="time" id="fc-start" value="10:00" oninput="calcDur('fc')"></div>
+        <div class="fg"><label>End time</label><input type="time" id="fc-end" value="12:00" oninput="calcDur('fc')"></div>
+        <div class="fg"><label>Duration</label><input type="text" id="fc-dur" readonly style="background:#f5f4f0"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label>Phone</label><input type="tel" id="fc-phone" placeholder="604-xxx-xxxx"></div>
+        <div class="fg"><label>Address</label><input type="text" id="fc-address" placeholder="Unit - Street, City"></div>
+      </div>
+      <div class="fg" style="margin-bottom:16px"><label>Notes / special instructions</label><textarea id="fc-notes" placeholder="Access info, special requirements, etc."></textarea></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="addClient()">Save client</button>
+        <button class="btn btn-secondary" onclick="clearClientForm()">Clear</button>
+      </div>
+    </div>
+    <div id="new-client-list"></div>
+  </div>
+
+  <!-- ADD CAREGIVER (admin only) -->
+  <div id="addcg" class="panel">
+    <div class="success" id="cg-success">Caregiver added! Synced to all devices.</div>
+    <div class="form-box">
+      <div class="form-title">Add new caregiver</div>
+      <div class="frow">
+        <div class="fg"><label>Full name</label><input type="text" id="fg-name" placeholder="e.g. Jane Smith"></div>
+        <div class="fg"><label>Status / role</label>
+          <select id="fg-status"><option>Companion</option><option>RCA</option><option>CPI</option><option>HOLD</option></select>
+        </div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label>Service area</label><input type="text" id="fg-area" placeholder="e.g. Maple Ridge, Coquitlam"></div>
+        <div class="fg"><label>Phone</label><input type="tel" id="fg-phone" placeholder="604-xxx-xxxx"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label>SIN expiry (if applicable)</label><input type="month" id="fg-sin"></div>
+        <div class="fg"><label>Wage (optional)</label><input type="text" id="fg-wage" placeholder="e.g. $24/hr"></div>
+      </div>
+      <div class="fg" style="margin-bottom:16px"><label>Notes</label><textarea id="fg-notes" placeholder="Languages, certifications, limitations, etc."></textarea></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="addCaregiver()">Save caregiver</button>
+        <button class="btn btn-secondary" onclick="clearCGForm()">Clear</button>
+      </div>
+    </div>
+    <div id="new-cg-list"></div>
+  </div>
+
+  <!-- PRINT -->
+  <div id="printview" class="panel">
+    <div class="print-ctrl">
+      <div class="fg" style="flex:1;min-width:200px"><label>Select caregiver</label><select id="print-select" onchange="renderPrint()"></select></div>
+      <button class="btn btn-primary" onclick="window.print()">Print schedule</button>
+    </div>
+    <div id="print-output"></div>
+  </div>
+
+  <!-- SETTINGS (admin only) -->
+  <div id="settings" class="panel">
+    <div class="form-box">
+      <div class="form-title">Firebase cloud sync setup</div>
+      <p style="font-size:13px;color:#666;margin-bottom:16px;line-height:1.6">
+        To sync data across devices, connect a free Firebase Realtime Database. Follow these steps:<br><br>
+        1. Go to <strong>console.firebase.google.com</strong> and create a free project<br>
+        2. Add a Realtime Database (start in test mode)<br>
+        3. Copy your database URL (looks like <code>https://your-project.firebaseio.com</code>)<br>
+        4. Paste it below and click Save
+      </p>
+      <div class="fg" style="margin-bottom:14px">
+        <label>Firebase database URL</label>
+        <input type="url" id="fb-url" placeholder="https://your-project-default-rtdb.firebaseio.com">
+      </div>
+      <button class="btn btn-primary" onclick="saveFirebaseConfig()">Save & connect</button>
+      <div id="fb-status" style="margin-top:10px;font-size:13px"></div>
+    </div>
+    <div class="form-box" style="margin-top:14px">
+      <div class="form-title">Change PINs</div>
+      <div class="frow">
+        <div class="fg"><label>New admin PIN (4 digits)</label><input type="password" id="new-admin-pin" maxlength="4" placeholder="••••"></div>
+        <div class="fg"><label>New staff PIN (4 digits)</label><input type="password" id="new-staff-pin" maxlength="4" placeholder="••••"></div>
+      </div>
+      <button class="btn btn-primary" onclick="savePins()">Update PINs</button>
+      <div id="pin-save-msg" style="margin-top:8px;font-size:13px;color:#085041"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+
+
+<!-- DAY EDIT MODAL -->
+<div class="modal-overlay" id="day-modal" style="display:none">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-title"><span id="day-modal-title">Visit details</span><button class="modal-close" onclick="closeDayModal()">×</button></div>
+    <div id="day-modal-body"></div>
+  </div>
+</div>
+<!-- SCHEDULE CELL MODAL -->
+<div class="modal-overlay" id="schedule-modal" style="display:none">
+  <div class="schedule-modal">
+    <div class="schedule-modal-title">
+      <span id="sched-modal-title">Add client to shift</span>
+      <button class="modal-close" onclick="closeScheduleModal()">×</button>
+    </div>
+    <div id="sched-modal-body"></div>
+  </div>
+</div>
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="edit-modal" style="display:none">
+  <div class="modal">
+    <div class="modal-title"><span id="modal-title-text">Edit</span><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div id="modal-body"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-primary" onclick="saveModal()">Save changes</button>
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger btn-sm" style="margin-left:auto" onclick="deleteModalItem()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+const ADMIN_PIN_DEFAULT = '3789';
+const STAFF_PIN_DEFAULT = '0000';
+const DAYS7 = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const DAY_KEYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let currentRole = null; // 'admin' | 'staff'
+let pinBuffer = '';
+let firebaseURL = '';
+let db = null; // Firebase database ref
+let appData = {
+  progressNotes: {},  // keyed by client id, array of {date, text, author}
+  caregivers: [],
+  clients: [],
+  sssClients: [],
+  sinData: [],
+  availability: {},
+  weekly: [],
+  pins: { admin: ADMIN_PIN_DEFAULT, staff: STAFF_PIN_DEFAULT }
+};
+let cgFilter = 'all', clFilter = 'all';
+let modalType = '', modalId = null;
+
+// ─── SEED DATA ────────────────────────────────────────────────────────────────
+const SEED_CAREGIVERS = [
+  {id:'cg1',name:'Amanda J. Skinner',status:'Companion',area:'Maple Ridge, Pitt Meadows',note:'Wage $26 w/Michael Feeding; doing HCA course; hairdresser',phone:''},
+  {id:'cg2',name:'Barbara A. Renkers',status:'Companion',area:'Abbotsford, Mission',note:'New hire',phone:''},
+  {id:'cg3',name:'Candy WS Chong',status:'Companion',area:'Vancouver, Burnaby',note:'New hire; Cantonese; companion for Veronica 2x/wk; can feed',phone:''},
+  {id:'cg4',name:'Civi Varghese',status:'RCA',area:'Most areas',note:'RN India 18yrs; covers Fafa shifts; SIN exp Apr 2027',sin:'2027-04',phone:''},
+  {id:'cg5',name:'Cynthia R. Cabalfin',status:'Companion',area:'Most areas',note:'',phone:''},
+  {id:'cg6',name:'Elizabeth F. Urbani',status:'RCA',area:'Coquitlam',note:'Also at Home Instead; no new work',phone:''},
+  {id:'cg7',name:'Fatemeh Khalili Ardali',status:'RCA',area:'Most areas',note:'RN Iran; nursing program here; SIN exp Sep 2027',sin:'2027-09',phone:''},
+  {id:'cg8',name:'Fedra Javidi',status:'RCA',area:'Maple Ridge, Coquitlam',note:'RN Iran; also Nurse Next Door; SIN exp Oct 2026',sin:'2026-10',sinWarn:true,phone:''},
+  {id:'cg9',name:'Janis AT Visutskie (Tabitha)',status:'Companion',area:'New Westminster',note:'No vehicle; cleaning; Dementia Care Cert',phone:''},
+  {id:'cg10',name:'Jasbir Kaur',status:'RCA',area:'Most areas',note:'',phone:''},
+  {id:'cg11',name:'Jayson G. Cervantes',status:'RCA',area:'Most areas',note:'No vehicle; cleaning; SIN exp May 2027',sin:'2027-05',phone:''},
+  {id:'cg12',name:'Judelylove Pesimo (Jude)',status:'RCA',area:'Maple Ridge, Pitt Meadows',note:'Wage $24 w/Michael Feeding; RN Philippines; SIN exp Sep 2027',sin:'2027-09',phone:''},
+  {id:'cg13',name:'Judith E. Woodhall (Judy)',status:'Companion',area:'Most areas',note:'No vehicle; willing to help new clients',phone:''},
+  {id:'cg14',name:'Kamal Sarao',status:'RCA',area:'Most areas',note:'Retired RCA; 22yrs at SMH & LMH',phone:''},
+  {id:'cg15',name:'Karen Mann',status:'—',area:'Coquitlam',note:'Status/role TBC',phone:''},
+  {id:'cg16',name:'Leslie E. Carlberg',status:'CPI',area:'Most areas',note:'Available Mon & Sat; 30yrs child care',phone:''},
+  {id:'cg17',name:'Lynda D. Alma',status:'Companion',area:'MR, PM, Coquitlam',note:'42yrs with Telus',phone:''},
+  {id:'cg18',name:'Mark W. Forbes',status:'Companion',area:'MR, PM, Coquitlam',note:'FT Correctional Officer; works 4 on 4 off',phone:''},
+  {id:'cg19',name:'Maryam Askari (Afsoon)',status:'RCA',area:'Maple Ridge, Pitt Meadows',note:'Psychologist Iran; 10yrs senior care',phone:''},
+  {id:'cg20',name:'Melita M. Szary',status:'Companion',area:'Surrey, New West, Coquitlam',note:'Retired pharmacist 30yrs; no new work',phone:''},
+  {id:'cg21',name:'Mia Min-Se Lee',status:'Companion',area:'Maple Ridge, Pitt Meadows',note:'Taking English course',phone:''},
+  {id:'cg22',name:'Nicole L. Tellez Elizalde',status:'RCA',area:'Surrey, New West, Burnaby',note:'No vehicle; cleaning; passed HCA; cleaning co 10yrs',phone:''},
+  {id:'cg23',name:'Padma W. Singh',status:'RCA',area:'Most areas',note:'Retired; senior care 35yrs',phone:''},
+  {id:'cg24',name:'Phoebe Laspinas Glindro',status:'HOLD',area:'Langley',note:'Work permit expired — ON HOLD',phone:''},
+  {id:'cg25',name:'Rosanna D. Ciarniello',status:'Companion',area:'Coquitlam',note:'Retired; 40yrs food service; no new work',phone:''},
+  {id:'cg26',name:'Sandra E. McKinnon (Sandi)',status:'RCA',area:'MR, PM, Coquitlam',note:'Retired; 25yrs health care',phone:''},
+  {id:'cg27',name:'Sandra Jackson (Sandy)',status:'Companion',area:'Surrey, New West',note:"Has own company; not avail 11:30am–2pm",phone:''},
+  {id:'cg28',name:'Sarla K. Thompson (Sara)',status:'RCA',area:'Most areas',note:'Retired; senior care 35yrs',phone:''},
+  {id:'cg29',name:'Sarojini D. Enktaiya',status:'RCA',area:'Most areas',note:'Retired; 20yrs FH. Note: can be bossy',phone:''},
+  {id:'cg30',name:'Soledad S. Regio',status:'Companion',area:'New Westminster',note:'No vehicle; cleaning',phone:''},
+  {id:'cg31',name:'Tak Wah Tam (Dennis)',status:'Companion',area:'New West, Burnaby',note:'Very organized; Cantonese speaking',phone:''},
+  {id:'cg32',name:'Tanya J. Campbell',status:'Companion',area:'MR, PM, Coquitlam',note:'',phone:''},
+  {id:'cg33',name:'Theresa Savanah Dion',status:'RCA',area:'Burnaby, Vancouver',note:'',phone:''},
+  {id:'cg34',name:'Tina M. Johnston',status:'RCA',area:'MR, PM, Coquitlam',note:'Wage $26 w/Michael Feeding; RCA 8yrs',phone:''},
+  {id:'cg35',name:'Veena D. Kumar',status:'RCA',area:'Most areas',note:'Also works for FH',phone:''},
+  {id:'cg36',name:'Veena Prasad (Vee)',status:'Companion',area:'Most areas',note:'Retired; 42yrs Canada Post',phone:''}
+];
+
+const SEED_CLIENTS = [
+  {id:'cl1',name:'Alexandra Worsley',caregiver:'Nicole',backup:'',freq:'Weekly',time:'9–11am',hrs:2,svc:'Cleaning',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl2',name:'Ambernadine Tody',caregiver:'Sandy J / Veena',backup:'',freq:'As needed',time:'Appt only',hrs:null,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl3',name:'Anna Ford',caregiver:'Sandi McKinnon',backup:'',freq:'Every other week',time:'10am–12pm',hrs:2,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl4',name:'Arno & Marjo Forslund',caregiver:'Veena Prasad',backup:'',freq:'As needed',time:'',hrs:null,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl5',name:'Barbara Kendall',caregiver:'Sole / Sandy J / Jayson / Rosanna / Nicole',backup:'',freq:'Weekly',time:'10am–12pm',hrs:2,svc:'Cleaning',funding:'SSS / Private',note:'2 visits SSS; others private',phone:'',address:''},
+  {id:'cl6',name:'Barbara Mulski',caregiver:'Sandy J',backup:'Nicole',freq:'As needed',time:'',hrs:null,svc:'Cleaning',funding:'Private',note:'Send Nicole if required',phone:'',address:''},
+  {id:'cl7',name:'Betty Barrow',caregiver:'Veena Prasad',backup:'Padma',freq:'Weekly',time:'10am–12pm',hrs:2,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl8',name:'Betty Poitras',caregiver:'Veena Prasad',backup:'',freq:'As needed',time:'',hrs:null,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl9',name:'Bill Parkin',caregiver:'Sandi / Amanda / Lynda',backup:'',freq:'Weekly',time:'10am–12pm',hrs:2,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl10',name:'Brian Green #28804',caregiver:'Nicole',backup:'Jayson',freq:'Twice a month',time:'9–11am',hrs:2,svc:'Cleaning',funding:'PGT',note:'',phone:'',address:''},
+  {id:'cl11',name:'Bruce Ross #29278',caregiver:'Judy',backup:'Leslie',freq:'Weekly',time:'10am–1pm',hrs:3,svc:'Companion',funding:'PGT',note:'',phone:'',address:''},
+  {id:'cl12',name:'Carmen Bartley #62718',caregiver:'Cynthia / Sarla',backup:'',freq:'ON HOLD',time:'',hrs:null,svc:'Companion',funding:'PGT',note:"Doesn't want services",phone:'',address:''},
+  {id:'cl13',name:'Carol & John Lorenz',caregiver:'Afsoon / Jude',backup:'',freq:'Daily + M/W/F/Sun eves',time:'8–10am + eves',hrs:2,svc:'Companion + Personal Care',funding:'Private',note:'Jude 8pm 1hr diaper change M/W/F/Sun; shower weekly 3hrs',phone:'',address:''},
+  {id:'cl14',name:'Catherine Amey',caregiver:'Sandi McKinnon',backup:'',freq:'Weekly',time:'10am–12pm',hrs:2,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl15',name:'Corazon Eufan #120383',caregiver:'Jayson',backup:'',freq:'6hrs/week',time:'9am–3pm',hrs:6,svc:'Companion',funding:'PGT',note:'',phone:'',address:''},
+  {id:'cl16',name:"D'arcy Creed",caregiver:'Rosanna',backup:'',freq:'Twice a month',time:'10am–12pm',hrs:2,svc:'Cleaning',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl17',name:'Daisy Mackie',caregiver:'Judy',backup:'Leslie',freq:'2–3x/week',time:'9am–1pm',hrs:4,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl18',name:'Daisy Roemer',caregiver:'Cynthia',backup:'',freq:'Weekly',time:'10am–12pm',hrs:2,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl19',name:'Delores Alfred #30563',caregiver:'Leslie',backup:'Sarah / Sarla / Padma',freq:'Weekly',time:'10am–1pm',hrs:3,svc:'Companion',funding:'PGT',note:'',phone:'',address:''},
+  {id:'cl20',name:'Edda Knorr',caregiver:'Sandy J',backup:'Janis',freq:'Weekly',time:'10am–12pm',hrs:'2–3 alt',svc:'Cleaning / Companion',funding:'Private',note:'Alt 3hrs and 2hrs each week',phone:'',address:''},
+  {id:'cl21',name:'Elfriede Zappa',caregiver:'Fafa / Veena',backup:'Tina / Fedra',freq:'Twice a week Mon/Wed',time:'9–11am',hrs:2,svc:'Personal Care',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl22',name:'Elizabeth Orsolan',caregiver:'Cynthia',backup:'',freq:'Every other week',time:'10am–1pm',hrs:3,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl23',name:'Gloria & Joe Murphy',caregiver:'Fedra',backup:'Cynthia',freq:'Weekly',time:'9am–1pm',hrs:4,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl24',name:'Gloria Shirlaw',caregiver:'Judy',backup:'Leslie',freq:'Every other week',time:'10am–12pm',hrs:2,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl25',name:'Graziano & Dorina Ceccon',caregiver:'Veena Prasad',backup:'',freq:'Weekly',time:'10am–12pm',hrs:2,svc:'Personal Care',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl26',name:'Hans and Doris Waidelich',caregiver:'Fedra',backup:'',freq:'Twice a week',time:'9–11am',hrs:2,svc:'Personal Care',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl27',name:'Harry Jensen #127018',caregiver:'Jayson',backup:'',freq:'Weekly',time:'10am–1pm',hrs:3,svc:'Companion',funding:'PGT',note:'',phone:'',address:''},
+  {id:'cl28',name:'Helen – Hay Lin Mak #130974',caregiver:'Dennis',backup:'',freq:'11hrs/week',time:'9am–12pm',hrs:3,svc:'Companion',funding:'PGT',note:'',phone:'',address:''},
+  {id:'cl29',name:'Helen Jensen',caregiver:'Lynda',backup:'',freq:'4x/week',time:'9am–12pm',hrs:3,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl30',name:'Ines Schula-Jimenez #142113',caregiver:'Melita',backup:'Jude',freq:'9hrs/week',time:'9am–12pm',hrs:3,svc:'Companion',funding:'PGT',note:'',phone:'',address:''},
+  {id:'cl31',name:'Inge Bailey',caregiver:'Nicole',backup:'',freq:'Weekly',time:'10am–12pm',hrs:2,svc:'Companion',funding:'Private',note:'*Blind client',phone:'',address:''},
+  {id:'cl32',name:'Ingrid Cummings',caregiver:'Tina',backup:'',freq:'Weekly',time:'10am–12pm',hrs:2,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl33',name:'Irene Reading',caregiver:'Tanya',backup:'',freq:'Weekly',time:'10am–12pm',hrs:2,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl34',name:'Iris Axe #149391',caregiver:'Sandy J',backup:'Sarla',freq:'3hrs/week',time:'10am–1pm',hrs:3,svc:'Companion',funding:'PGT',note:'Grocery shopping',phone:'',address:''},
+  {id:'cl35',name:'Jack & Marian Faber',caregiver:'Lynda',backup:'Tanya',freq:'Weekly',time:'10am–1pm',hrs:3,svc:'Cleaning / Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl36',name:'James Herd',caregiver:'Sandy J',backup:'',freq:'As needed',time:'',hrs:null,svc:'Cleaning',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl37',name:'Jim Brown',caregiver:'Tanya',backup:'',freq:'As needed',time:'',hrs:null,svc:'Cleaning',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl38',name:'Joan Cafferky',caregiver:'Tina',backup:'',freq:'Weekly',time:'10am–12pm',hrs:2,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl39',name:'Joan McLeod',caregiver:'Sarla',backup:'Padma / Veena',freq:'Twice a week',time:'10am–12pm',hrs:2,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl40',name:'John Colley',caregiver:'Tanya',backup:'Jude',freq:'Twice a month',time:'10am–12pm',hrs:2,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl41',name:'John Kendal',caregiver:'Sarojini / Jasbir',backup:'',freq:'As needed – appts',time:'',hrs:null,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl42',name:'Judy Ford',caregiver:'Jude',backup:'',freq:'Weekly',time:'10am–12pm',hrs:2,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl43',name:'June Venables',caregiver:'Candy',backup:'',freq:'As needed',time:'',hrs:null,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl44',name:'Katherine Gore #78503',caregiver:'Cynthia',backup:'',freq:'Weekly',time:'9am–1pm',hrs:4,svc:'Companion',funding:'PGT',note:'',phone:'',address:''},
+  {id:'cl45',name:'Kathi & Irvin Jay',caregiver:'Padma',backup:'',freq:'As needed',time:'',hrs:null,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl46',name:'Linda Davies #129293',caregiver:'Veena / Padma / Sarla',backup:'',freq:'3x/week',time:'10am–1pm',hrs:3,svc:'Companion',funding:'PGT',note:'',phone:'',address:''},
+  {id:'cl47',name:'Linda Evers #7067',caregiver:'Barbara',backup:'',freq:'Monthly',time:'10am–1pm',hrs:3,svc:'Companion',funding:'PGT',note:'PGT – no contract',phone:'',address:''},
+  {id:'cl48',name:'Linda Winchester',caregiver:'Sarah',backup:'',freq:'As needed',time:'',hrs:null,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl49',name:'Lynda Ervin #100439',caregiver:'Judy',backup:'Leslie',freq:'Weekly',time:'10am–12pm',hrs:2,svc:'Companion',funding:'PGT',note:'',phone:'',address:''},
+  {id:'cl50',name:'Marilyn G. Howitt',caregiver:'Tina',backup:'Amanda',freq:'Twice a week',time:'10am–12pm',hrs:2,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl51',name:'Marion Komaromi #29675',caregiver:'Tina',backup:'',freq:'Weekly',time:'10–11am',hrs:1,svc:'Companion',funding:'PGT',note:'PGT – no contract',phone:'',address:''},
+  {id:'cl52',name:'Mark Tuson #124954',caregiver:'Elizabeth',backup:'Sarla / Veena',freq:'9hrs/week',time:'9am–12pm',hrs:3,svc:'Companion',funding:'PGT',note:'*Large expense account*',phone:'',address:''},
+  {id:'cl53',name:'Mary Nolletti #149164',caregiver:'Sarla',backup:'',freq:'As needed',time:'',hrs:null,svc:'Companion',funding:'PGT',note:'',phone:'',address:''},
+  {id:'cl54',name:'Michael Chan #131685',caregiver:'Dennis',backup:'',freq:'6hrs/week',time:'9am–12pm',hrs:3,svc:'Companion',funding:'PGT',note:'',phone:'',address:''},
+  {id:'cl55',name:'Michael Jaklitsch',caregiver:'Amanda / Tina / Jude',backup:'',freq:'3x daily – 1hr each',time:'7–8am + 2 more',hrs:1,svc:'Personal Care – Feeding',funding:'Private',note:'3 separate 1hr visits/day',phone:'',address:''},
+  {id:'cl56',name:'Michael Maki #146562',caregiver:'Theresa',backup:'',freq:'Weekly',time:'10am–1pm',hrs:3,svc:'Companion',funding:'PGT',note:'',phone:'',address:''},
+  {id:'cl57',name:'Myra & David Hutchinson',caregiver:'Tanya',backup:'',freq:'Weekly',time:'10am–12pm',hrs:2,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl58',name:'Pattie & Dan Postulo',caregiver:'Jasbir',backup:'',freq:'Twice a month',time:'9am–2pm',hrs:5,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl59',name:'Ricardo Cosco #30729',caregiver:'Sarah',backup:'Jasbir / Tina',freq:'Weekly',time:'9am–1pm',hrs:4,svc:'Companion',funding:'PGT',note:'Can be more',phone:'',address:''},
+  {id:'cl60',name:'Rick Cole #135779',caregiver:'Mark Forbes',backup:'',freq:'Weekly',time:'10am–12pm',hrs:2,svc:'Companion',funding:'PGT',note:'PGT – no contract',phone:'',address:''},
+  {id:'cl61',name:'Roberta Madreo #14367',caregiver:'Sarah',backup:'Jasbir',freq:'As needed',time:'',hrs:null,svc:'Companion',funding:'PGT',note:'',phone:'',address:''},
+  {id:'cl62',name:'Rocco Zarrillo',caregiver:'Tina / Fafa',backup:'',freq:'Twice a week',time:'10–11am',hrs:1,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl63',name:'Ron Joss',caregiver:'Tanya',backup:'',freq:'Weekly',time:'10am–1pm',hrs:3,svc:'Companion',funding:'Private',note:'Shopping',phone:'',address:''},
+  {id:'cl64',name:'Rose Begley #121681',caregiver:'Sarla',backup:'',freq:'Monthly',time:'10am–2pm',hrs:4,svc:'Companion',funding:'PGT',note:'New PGT',phone:'',address:''},
+  {id:'cl65',name:'Ruby Campbell #132684',caregiver:'Veena Prasad',backup:'Sarah',freq:'Twice a week',time:'10am–1pm',hrs:3,svc:'Companion',funding:'PGT',note:'',phone:'',address:''},
+  {id:'cl66',name:'Santosh Puar',caregiver:'Nicole',backup:'',freq:'As needed',time:'',hrs:null,svc:'Cleaning',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl67',name:'Sherry Wilkes',caregiver:'Nicole',backup:'',freq:'Weekly',time:'10am–12pm',hrs:2,svc:'Cleaning',funding:'SSS',note:'',phone:'',address:''},
+  {id:'cl68',name:'Shirley Morgan',caregiver:'Leslie / Padma / Veena / Sarla',backup:'Judy / Jayson',freq:'Daily',time:'8am–12pm',hrs:4,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl69',name:'Terrence Fortier #142013',caregiver:'Sarah',backup:'',freq:'8hrs/week – 2x/week',time:'9am–1pm',hrs:4,svc:'Companion',funding:'PGT',note:'',phone:'',address:''},
+  {id:'cl70',name:'Todd Forewell',caregiver:'Jasbir / Dennis',backup:'',freq:'As needed',time:'',hrs:null,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl71',name:'Vera Bentley',caregiver:'Fafa / Fedra',backup:'Tina',freq:'Twice a month',time:'10am–12pm',hrs:2,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl72',name:'Veronica Chu #107034',caregiver:'Civi / Fafa / Candy / Dennis',backup:'',freq:'Daily + 5hrs comp/wk',time:'8am–2pm',hrs:6,svc:'Personal Care + Companion',funding:'PGT',note:'Civi/Fafa feeding; Candy/Dennis companion; 6hrs/day + 5hrs comp',phone:'',address:''},
+  {id:'cl73',name:'Virginia Paul',caregiver:'Cynthia',backup:'',freq:'Twice a month',time:'10am–12pm',hrs:2,svc:'Companion',funding:'Private',note:'',phone:'',address:''},
+  {id:'cl74',name:'Akhtary, Leila & Osman',caregiver:'Marie',backup:'',freq:'Twice a month',time:'',hrs:4,svc:'Cleaning',funding:'SSS',note:'HHH-2019-9 · 1203 - 121 10th St · 604-596-0877',phone:'',address:''},
+  {id:'cl75',name:'Ayton, Bill',caregiver:'Judy',backup:'',freq:'Twice a month',time:'',hrs:4,svc:'Cleaning',funding:'SSS',note:'HHH-2024-05 · 101 - 222 Sherbrooke St · 604-517-0184',phone:'',address:''},
+  {id:'cl76',name:'Ball, Kevin',caregiver:'Marie',backup:'',freq:'Twice a month',time:'',hrs:4,svc:'Cleaning',funding:'SSS',note:'HHH-2021-21 · 314 - 2222 Edinburgh St · 778-791-7277',phone:'',address:''},
+  {id:'cl77',name:'Barber, Jeremy',caregiver:'Nicole',backup:'',freq:'As needed',time:'',hrs:2,svc:'Cleaning',funding:'SSS',note:'HHH-2021-29 · 804 - 615 Belmont St · 604-524-2387',phone:'',address:''},
+  {id:'cl78',name:'Birch, Monica',caregiver:'Janis',backup:'',freq:'As needed',time:'',hrs:2,svc:'Cleaning',funding:'SSS',note:'HHH-2021-14 · 23 - 11 K de K Crt · 604-526-0090',phone:'',address:''},
+  {id:'cl79',name:'Chapman, Charles & Norma',caregiver:'Marie',backup:'',freq:'Twice a month',time:'',hrs:4,svc:'Cleaning',funding:'SSS',note:'HHH-2023-41 · 10 - 418 12th Street · 604-612-8274',phone:'',address:''},
+  {id:'cl80',name:'Chau, Mollie',caregiver:'Judy W',backup:'',freq:'Twice a month',time:'',hrs:4,svc:'Cleaning',funding:'SSS',note:'HHH-2022-38 · 206 - 222 Sherbrooke St · 604-788-4698',phone:'',address:''},
+  {id:'cl81',name:'Damji, Nasim',caregiver:'Sole',backup:'',freq:'Twice a month',time:'',hrs:4,svc:'Cleaning',funding:'SSS',note:'HHH-2022-39 · 106 - 420 7th St · 604-218-6209',phone:'',address:''},
+  {id:'cl82',name:'Elliot, Ena',caregiver:'Sole',backup:'',freq:'Twice a month',time:'',hrs:4,svc:'Cleaning',funding:'SSS',note:'HHH-2021-19 · 1206 - 810 St Andrews St · 604-520-6702',phone:'',address:''},
+  {id:'cl83',name:'Fieldhouse, Bill',caregiver:'Sole',backup:'',freq:'3x/month',time:'',hrs:6.5,svc:'Cleaning',funding:'SSS',note:'HHH-2021-25 · 307 - 25 Clute St · 604-681-4454',phone:'',address:''},
+  {id:'cl84',name:'Hodgkiss, Leslie',caregiver:'Nicole',backup:'',freq:'Twice a month',time:'',hrs:4,svc:'Cleaning',funding:'SSS',note:'HHH-2025-02 · 121 Sinclair Ave · 604-526-5650',phone:'',address:''},
+  {id:'cl85',name:'Jalali, Montaram (Moti)',caregiver:'Sole / Nicole',backup:'',freq:'Twice a month',time:'',hrs:4,svc:'Cleaning',funding:'SSS',note:'HHH-2018-14 · 1002 - 612 5th Ave · 604-540-7382',phone:'',address:''},
+  {id:'cl86',name:'Kendall, Barbara (SSS)',caregiver:'Sole',backup:'',freq:'Twice a month',time:'',hrs:4,svc:'Cleaning',funding:'SSS',note:'HHH-2024-04 · 1103 6th Ave · 604-781-8197',phone:'',address:''},
+  {id:'cl87',name:'Klancevic, Mira',caregiver:'Sole',backup:'',freq:'Twice a month',time:'',hrs:4,svc:'Cleaning',funding:'SSS',note:'HHH-2023-42 · 302 - 265 10th St · 604-524-6113',phone:'',address:''},
+  {id:'cl88',name:'Kleine, Ruby',caregiver:'Sole / Sandy J',backup:'',freq:'As needed',time:'',hrs:2,svc:'Cleaning',funding:'SSS',note:'HHH-2024-02 · 359 Keary Street · 604-526-3048',phone:'',address:''},
+  {id:'cl89',name:'Male, Eileen',caregiver:'Sole',backup:'',freq:'Twice a month',time:'',hrs:4,svc:'Cleaning',funding:'SSS',note:'CPA-2025-1 · 407 - 365 Ginger Drive · 604-515-4767',phone:'',address:''},
+  {id:'cl90',name:'Rego, Maria & Armando',caregiver:'Marie',backup:'',freq:'As needed',time:'',hrs:null,svc:'Cleaning',funding:'SSS',note:'HHH-2022-38 · 205 - 335 5th St · 778-895-1692',phone:'',address:''},
+  {id:'cl91',name:'Schmidt, Vance',caregiver:'Jayson / Nicole',backup:'',freq:'Twice a month',time:'',hrs:4,svc:'Cleaning',funding:'SSS',note:'HHH-2018-2 · 104 - 222 Sherbrooke St · 604-440-6426',phone:'',address:''},
+  {id:'cl92',name:'Varro, Tim',caregiver:'Sole',backup:'',freq:'As needed',time:'',hrs:2,svc:'Cleaning',funding:'SSS',note:'HHH-2023-51 · 804 - 831 Carnarvon St · 604-999-9449',phone:'',address:''},
+  {id:'cl93',name:'Wilkes, Sherry (SSS)',caregiver:'Nicole',backup:'',freq:'Twice a month',time:'',hrs:4,svc:'Cleaning',funding:'SSS',note:'HHH-2021-13 · 2412 - 988 Quayside Dr · 604-803-9177',phone:'',address:''}
+];
+
+const SEED_SSS = [
+  {id:'sss1',workOrder:'HHH-2019-9',name:'Akhtary, Leila & Osman',phone:'604-596-0877',address:'1203 - 121 10th St',caregiver:'Marie',dates:'13/27 Jan',hrs:4},
+  {id:'sss2',workOrder:'HHH-2024-05',name:'Ayton, Bill',phone:'604-517-0184',address:'101 - 222 Sherbrooke St.',caregiver:'Judy',dates:'9/20 Jan',hrs:4},
+  {id:'sss3',workOrder:'HHH-2021-21',name:'Ball, Kevin',phone:'778-791-7277',address:'314 - 2222 Edinburgh St.',caregiver:'Marie',dates:'6/22 Jan',hrs:4},
+  {id:'sss4',workOrder:'HHH-2021-29',name:'Barber, Jeremy',phone:'604-524-2387',address:'804 - 615 Belmont St.',caregiver:'Nicole',dates:'',hrs:2},
+  {id:'sss5',workOrder:'HHH-2021-14',name:'Birch, Monica',phone:'604-526-0090',address:'23 - 11 K de K Crt',caregiver:'Janis',dates:'',hrs:2},
+  {id:'sss6',workOrder:'HHH-2023-41',name:'Chapman, Charles & Norma',phone:'604-612-8274',address:'10 - 418 12th Street',caregiver:'Marie',dates:'6/22 Jan',hrs:4},
+  {id:'sss7',workOrder:'HHH-2022-38',name:'Chau, Mollie',phone:'604-788-4698',address:'206 - 222 Sherbrooke St.',caregiver:'Judy W',dates:'9/20 Jun',hrs:4},
+  {id:'sss8',workOrder:'HHH-2022-39',name:'Damji, Nasim',phone:'604-218-6209',address:'106 - 420 7th St.',caregiver:'Sole',dates:'8/24 Jan',hrs:4},
+  {id:'sss9',workOrder:'HHH-2021-19',name:'Elliot, Ena',phone:'604-520-6702',address:'1206 - 810 St. Andrews St.',caregiver:'Sole',dates:'7/23 Jan',hrs:4},
+  {id:'sss10',workOrder:'HHH-2021-25',name:'Fieldhouse, Bill',phone:'604-681-4454',address:'307 - 25 Clute St',caregiver:'Sole',dates:'2/15/30 Jan',hrs:6.5},
+  {id:'sss11',workOrder:'HHH-2025-02',name:'Hodgkiss, Leslie',phone:'604-526-5650',address:'121 Sinclair Ave.',caregiver:'Nicole',dates:'8/23 Jan',hrs:4},
+  {id:'sss12',workOrder:'HHH-2018-14',name:'Jalali, Montaram (Moti)',phone:'604-540-7382',address:'1002 - 612 5th Ave',caregiver:'Sole/Nicole',dates:'5/19 Jan',hrs:4},
+  {id:'sss13',workOrder:'HHH-2024-04',name:'Kendall, Barbara',phone:'604-781-8197',address:'1103 6th Ave.',caregiver:'Sole',dates:'6/20 Jan',hrs:4},
+  {id:'sss14',workOrder:'HHH-2023-42',name:'Klancevic, Mira',phone:'604-524-6113',address:'302 - 265 10th St.',caregiver:'Sole',dates:'16/29 Jan',hrs:4},
+  {id:'sss15',workOrder:'HHH-2024-02',name:'Kleine, Ruby',phone:'604-526-3048',address:'359 Keary Street',caregiver:'Sole/Sandy J',dates:'',hrs:2},
+  {id:'sss16',workOrder:'CPA-2025-1',name:'Male, Eileen',phone:'604-515-4767',address:'407 - 365 Ginger Drive',caregiver:'Sole',dates:'12/26 Jan',hrs:4},
+  {id:'sss17',workOrder:'HHH-2022-38',name:'Rego, Maria & Armando',phone:'778-895-1692',address:'205 - 335 5th St',caregiver:'Marie',dates:'',hrs:null},
+  {id:'sss18',workOrder:'HHH-2018-2',name:'Schmidt, Vance',phone:'604-440-6426',address:'104 - 222 Sherbrooke St',caregiver:'Jayson/Nicole',dates:'9/23 Jan',hrs:4},
+  {id:'sss19',workOrder:'HHH-2023-51',name:'Varro, Tim',phone:'604-999-9449',address:'804 - 831 Carnarvon St',caregiver:'Sole',dates:'',hrs:2},
+  {id:'sss20',workOrder:'HHH-2021-13',name:'Wilkes, Sherry',phone:'604-803-9177',address:'2412 - 988 Quayside Dr.',caregiver:'Nicole',dates:'2/22 Jan',hrs:4},
+];
+
+const SEED_SIN = [
+  {name:'Phoebe Laspinas Glindro',expiry:'Expired',status:'expired',note:'Work permit expired — ON HOLD. Do not schedule.'},
+  {name:'Fedra Javidi',expiry:'Oct 15, 2026',status:'warn',note:'Also works Nurse Next Door. Follow up now.'},
+  {name:'Civi Varghese',expiry:'Apr 2027',status:'ok',note:'Covers Fafa shifts.'},
+  {name:'Jayson G. Cervantes',expiry:'May 13, 2027',status:'ok',note:'30-day reminder: Apr 2027.'},
+  {name:'Judelylove Pesimo (Jude)',expiry:'Sep 26, 2027',status:'ok',note:'RN Philippines. 30-day reminder: Aug 2027.'},
+  {name:'Fatemeh Khalili Ardali',expiry:'Sep 16, 2027',status:'ok',note:'In nursing program. 30-day reminder: Aug 2027.'},
+];
+
+const SEED_WEEKLY = [
+  {name:'Nicole',shifts:{Mon:['Alexandra W (2h clean)','Inge Bailey (2h comp)','Sherry Wilkes (2h clean)']}},
+  {name:'Sandy J',shifts:{Mon:['Edda Knorr (2-3h)','Iris Axe (3h shop)']}},
+  {name:'Sandi McKinnon',shifts:{Mon:['Anna Ford (2h)','Bill Parkin (2h)','Catherine Amey (2h)']}},
+  {name:'Veena Prasad',shifts:{Mon:['Betty Barrow (2h)','Graziano Ceccon (2h)'],Thu:['Ruby Campbell (3h)'],Fri:['Ruby Campbell (3h)']}},
+  {name:'Tina',shifts:{Mon:['Ingrid Cummings (2h)','Joan Cafferky (2h)','Marion Komaromi (1h)','Marilyn Howitt (2h)'],Wed:['Rocco Zarrillo (1h)'],Fri:['Rocco Zarrillo (1h)']}},
+  {name:'Judy',shifts:{Mon:['Bruce Ross (3h)','Daisy Mackie (4h)','Gloria Shirlaw (2h EOW)','Lynda Ervin (2h)']}},
+  {name:'Leslie',shifts:{Mon:['Delores Alfred (3h)','Shirley Morgan (4h)'],Tue:['Shirley Morgan (4h)'],Wed:['Shirley Morgan (4h)'],Thu:['Shirley Morgan (4h)'],Fri:['Shirley Morgan (4h)'],Sat:['Shirley Morgan (4h)'],Sun:['Shirley Morgan (4h)']}},
+  {name:'Sarla',shifts:{Mon:['Joan McLeod (2h)','Linda Davies (3h)'],Wed:['Linda Davies (3h)'],Thu:['Joan McLeod (2h)'],Fri:['Linda Davies (3h)']}},
+  {name:'Padma',shifts:{Mon:['Shirley Morgan (4h)'],Tue:['Shirley Morgan (4h)'],Wed:['Shirley Morgan (4h)'],Thu:['Shirley Morgan (4h)'],Fri:['Shirley Morgan (4h)'],Sat:['Shirley Morgan (4h)'],Sun:['Shirley Morgan (4h)']}},
+  {name:'Cynthia',shifts:{Mon:['Daisy Roemer (2h)','Elizabeth Orsolan (3h EOW)','Katherine Gore (4h)','Virginia Paul (2h EOW)']}},
+  {name:'Jayson',shifts:{Mon:['Corazon Eufan (6h)','Harry Jensen (3h)','Brian Green (2h 2x/mo)']}},
+  {name:'Lynda',shifts:{Mon:['Helen Jensen (3h)','Jack & Faber (3h)','Bill Parkin (2h)'],Tue:['Helen Jensen (3h)'],Wed:['Helen Jensen (3h)'],Thu:['Helen Jensen (3h)']}},
+  {name:'Tanya',shifts:{Mon:['Irene Reading (2h)','John Colley (2h EOW)','Myra & David (2h)','Ron Joss (3h)']}},
+  {name:'Afsoon',shifts:{Mon:['Carol & John Lorenz (2h)'],Tue:['Carol & John Lorenz (2h)'],Wed:['Carol & John Lorenz (2h)'],Thu:['Carol & John Lorenz (2h)'],Fri:['Carol & John Lorenz (2h)'],Sat:['Carol & John Lorenz (2h)'],Sun:['Carol & John Lorenz (2h)']}},
+  {name:'Jude',shifts:{Mon:['Judy Ford (2h)','Michael Jaklitsch (1h x3)'],Sun:['Carol Lorenz (1h eve)']}},
+  {name:'Fedra',shifts:{Mon:['Elfriede Zappa (2h)','Gloria Murphy (4h)','Hans Waidelich (2h)'],Wed:['Elfriede Zappa (2h)','Hans Waidelich (2h)']}},
+  {name:'Dennis',shifts:{Mon:['Helen Mak (3h)','Michael Chan (3h)'],Tue:['Helen Mak (3h)'],Wed:['Helen Mak (3h)'],Thu:['Helen Mak (3h)']}},
+  {name:'Melita',shifts:{Mon:['Ines Schula-Jimenez (3h)'],Wed:['Ines Schula-Jimenez (3h)'],Thu:['Ines Schula-Jimenez (3h)']}},
+  {name:'Amanda',shifts:{Mon:['Bill Parkin (2h)','Michael Jaklitsch (1h)']}},
+  {name:'Civi',shifts:{Mon:['Veronica Chu (6h feeding)'],Tue:['Veronica Chu (6h)'],Wed:['Veronica Chu (6h)'],Thu:['Veronica Chu (6h)'],Fri:['Veronica Chu (6h)'],Sat:['Veronica Chu (6h)'],Sun:['Veronica Chu (6h)']}},
+  {name:'Jasbir',shifts:{Mon:['John Kendal (appts)','Pattie & Dan Postulo (5h EOW)']}},
+  {name:'Theresa',shifts:{Mon:['Michael Maki (3h)']}},
+  {name:'Candy',shifts:{Mon:['Veronica Chu (comp 5h/wk)']}},
+];
+
+// ─── PIN LOGIN ────────────────────────────────────────────────────────────────
+function pinPress(d) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += d;
+  updatePinDots();
+  if (pinBuffer.length === 4) {
+    setTimeout(checkPin, 150);
+  }
+}
+function pinBack() {
+  pinBuffer = pinBuffer.slice(0, -1);
+  updatePinDots();
+  document.getElementById('pin-err').textContent = '';
+}
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('d' + i).classList.toggle('filled', i < pinBuffer.length);
+  }
+}
+function checkPin() {
+  const pins = loadPins();
+  if (pinBuffer === pins.admin) {
+    login('admin');
+  } else if (pinBuffer === pins.staff) {
+    login('staff');
+  } else {
+    document.getElementById('pin-err').textContent = 'Incorrect PIN. Try again.';
+    pinBuffer = '';
+    updatePinDots();
+  }
+}
+function loadPins() {
+  try {
+    const p = JSON.parse(localStorage.getItem('hh_pins') || '{}');
+    return { admin: p.admin || ADMIN_PIN_DEFAULT, staff: p.staff || STAFF_PIN_DEFAULT };
+  } catch(e) { return { admin: ADMIN_PIN_DEFAULT, staff: STAFF_PIN_DEFAULT }; }
+}
+function login(role) {
+  currentRole = role;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('role-label').innerHTML =
+    `<span class="role-badge role-${role}">${role === 'admin' ? 'Admin' : 'Staff'}</span>`;
+  // Show admin-only tabs
+  document.querySelectorAll('.admin-only').forEach(el => {
+    if (role === 'admin') {
+      el.classList.add('admin-show');
+    } else {
+      el.classList.remove('admin-show');
+    }
+  });
+  initApp();
+}
+function logout() {
+  currentRole = null;
+  pinBuffer = '';
+  updatePinDots();
+  document.getElementById('pin-err').textContent = '';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+// ─── FIREBASE ─────────────────────────────────────────────────────────────────
+function initApp() {
+  firebaseURL = localStorage.getItem('hh_firebase_url') || '';
+  if (firebaseURL) {
+    connectFirebase();
+  } else {
+    document.getElementById('setup-banner').style.display = 'block';
+    setSyncStatus('offline', 'Local only');
+    loadLocalData();
+    renderAll();
+  }
+}
+
+function connectFirebase() {
+  setSyncStatus('syncing', 'Connecting...');
+  // Use Firebase REST API (no SDK needed — works from plain HTML file)
+  fetchFirebase('/', data => {
+    if (!data || !data.caregivers) {
+      // First time — push seed data
+      pushAllSeedData(() => {
+        setSyncStatus('online', 'Synced');
+        renderAll();
+      });
+    } else {
+      appData.caregivers = objToArr(data.caregivers);
+      appData.clients = objToArr(data.clients);
+      appData.sssClients = objToArr(data.sssClients);
+      appData.sinData = objToArr(data.sinData) || SEED_SIN;
+      appData.availability = data.availability || {};
+      appData.progressNotes = data.progressNotes || {};
+      appData.weekly = objToArr(data.weekly).length ? objToArr(data.weekly) : SEED_WEEKLY;
+      setSyncStatus('online', 'Synced');
+      document.getElementById('setup-banner').style.display = 'none';
+      renderAll();
+    }
+  }, () => {
+    setSyncStatus('offline', 'Connection failed');
+    document.getElementById('setup-banner').style.display = 'block';
+    loadLocalData();
+    renderAll();
+  });
+}
+
+function fetchFirebase(path, onSuccess, onError) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  fetch(firebaseURL + path + '.json', {signal: controller.signal})
+    .then(r => { clearTimeout(timeout); return r.json(); })
+    .then(data => onSuccess(data))
+    .catch(e => { clearTimeout(timeout); if (onError) onError(e); });
+}
+
+function writeFirebase(path, data, onDone) {
+  if (!firebaseURL) { saveLocal(); if (onDone) onDone(); return; }
+  setSyncStatus('syncing', 'Saving...');
+  fetch(firebaseURL + path + '.json', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  })
+  .then(r => r.json())
+  .then(() => { setSyncStatus('online', 'Saved'); if (onDone) onDone(); })
+  .catch(() => { setSyncStatus('offline', 'Save failed'); saveLocal(); if (onDone) onDone(); });
+}
+
+function pushAllSeedData(onDone) {
+  appData.caregivers = SEED_CAREGIVERS;
+  appData.clients = SEED_CLIENTS;
+  appData.sssClients = SEED_SSS;
+  appData.sinData = SEED_SIN;
+  appData.availability = {};
+  appData.weekly = SEED_WEEKLY;
+  const payload = {
+    caregivers: arrToObj(appData.caregivers),
+    clients: arrToObj(appData.clients),
+    sssClients: arrToObj(appData.sssClients),
+    sinData: appData.sinData,
+    availability: {},
+    progressNotes: {},
+    weekly: appData.weekly
+  };
+  writeFirebase('/', payload, onDone);
+}
+
+function objToArr(obj) {
+  if (!obj) return [];
+  if (Array.isArray(obj)) return obj;
+  return Object.values(obj);
+}
+function arrToObj(arr) {
+  const obj = {};
+  arr.forEach(item => { obj[item.id || uid()] = item; });
+  return obj;
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+function loadLocalData() {
+  try {
+    const d = JSON.parse(localStorage.getItem('hh_data') || '{}');
+    appData.caregivers = d.caregivers || SEED_CAREGIVERS;
+    appData.clients = d.clients || SEED_CLIENTS;
+    appData.sssClients = d.sssClients || SEED_SSS;
+    appData.sinData = d.sinData || SEED_SIN;
+    appData.availability = d.availability || {};
+    appData.progressNotes = d.progressNotes || {};
+    appData.weekly = d.weekly || SEED_WEEKLY;
+  } catch(e) {
+    appData.caregivers = SEED_CAREGIVERS;
+    appData.clients = SEED_CLIENTS;
+    appData.sssClients = SEED_SSS;
+    appData.sinData = SEED_SIN;
+    appData.availability = {};
+    appData.weekly = SEED_WEEKLY;
+  }
+}
+function saveLocal() {
+  try { localStorage.setItem('hh_data', JSON.stringify(appData)); } catch(e) {}
+}
+
+function setSyncStatus(state, label) {
+  const dot = document.getElementById('sync-dot');
+  dot.className = 'sync-dot' + (state === 'syncing' ? ' syncing' : state === 'offline' ? ' offline' : '');
+  document.getElementById('sync-label').textContent = label;
+}
+
+// ─── RENDER ALL ───────────────────────────────────────────────────────────────
+function renderAll() {
+  updateStats();
+  renderCG();
+  renderCL();
+  renderSSS();
+  renderSIN();
+  renderAvail();
+  populateCaregiverDropdowns();
+  populatePrintSelect();
+  populateMonthlyClientSelect();
+  renderNewClients();
+  renderNewCGs();
+}
+
+function updateStats() {
+  const activeCG = appData.caregivers.filter(c => c.status !== 'HOLD').length;
+  const sinAlerts = appData.sinData.filter(s => s.status !== 'ok').length;
+  document.getElementById('stat-cg').textContent = activeCG;
+  document.getElementById('stat-cl').textContent = appData.clients.length;
+  document.getElementById('stat-sss').textContent = appData.sssClients.length;
+  document.getElementById('stat-sin').textContent = sinAlerts;
+}
+
+// ─── CAREGIVERS ───────────────────────────────────────────────────────────────
+function initials(n) { return n.split(' ').filter(w => w.length > 1).slice(0, 2).map(w => w[0].toUpperCase()).join(''); }
+function avClass(s) { return s === 'RCA' ? 'av-rca' : s === 'Companion' ? 'av-comp' : s === 'HOLD' ? 'av-hold' : 'av-cpi'; }
+function statusBadge(s) {
+  const map = {RCA:'b-rca',Companion:'b-comp',HOLD:'b-hold',CPI:'b-cpi'};
+  return `<span class="badge ${map[s]||''}">${s}</span>`;
+}
+function svcBadge(svc) {
+  let cl = 'svc-c';
+  if (/feed/i.test(svc) || /personal/i.test(svc)) cl = 'svc-f';
+  else if (/clean/i.test(svc)) cl = 'svc-cl';
+  return `<span class="svc-badge ${cl}">${svc}</span>`;
+}
+function fundBadge(f) {
+  if (!f) return '';
+  if (/PGT/i.test(f)) return `<span class="svc-badge svc-pgt">${f}</span>`;
+  if (/SSS/i.test(f)) return `<span class="svc-badge" style="background:#eeedfe;color:#3c3489">${f}</span>`;
+  return '';
+}
+
+function renderCG() {
+  const q = (document.getElementById('cg-search').value || '').toLowerCase();
+  const list = appData.caregivers.filter(c => {
+    if (cgFilter !== 'all' && c.status !== cgFilter) return false;
+    return !q || (c.name + c.area + (c.note || '')).toLowerCase().includes(q);
+  });
+  const isAdmin = currentRole === 'admin';
+  document.getElementById('cg-list').innerHTML = list.map((c, i) => `
+  <div class="card">
+    <div class="card-header">
+      <div style="font-size:12px;font-weight:700;color:#aaa;min-width:24px;text-align:right;flex-shrink:0">${i+1}</div>
+      <div class="avatar ${avClass(c.status)}">${initials(c.name)}</div>
+      <div><div class="cname">${c.name}</div><div class="csub">${c.area}${c.phone ? ' · ' + c.phone : ''}</div></div>
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+        ${statusBadge(c.status)}${c.sinWarn ? '<span class="badge b-warn">SIN expiring</span>' : ''}
+        ${isAdmin ? `<button class="edit-btn" onclick="openEditCG('${c.id}')">Edit</button>` : ''}
+      </div>
+    </div>
+    ${c.note ? `<div class="note">${c.note}</div>` : ''}
+  </div>`).join('');
+}
+
+function filterCG(f, btn) {
+  cgFilter = f;
+  document.querySelectorAll('#caregivers .flt').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCG();
+}
+
+// ─── CLIENTS ─────────────────────────────────────────────────────────────────
+function renderCL() {
+  const q = (document.getElementById('cl-search').value || '').toLowerCase();
+  const isAdmin = currentRole === 'admin';
+  const list = appData.clients.filter(c => {
+    if (clFilter !== 'all' && !c.funding.includes(clFilter)) return false;
+    return !q || (c.name + c.caregiver).toLowerCase().includes(q);
+  });
+  document.getElementById('cl-list').innerHTML = list.map((c, i) => `
+  <div class="card" style="padding:10px 14px;margin-bottom:6px">
+    <div style="display:flex;align-items:flex-start;gap:8px">
+      <div style="flex:1">
+        <span style="font-size:12px;font-weight:700;color:#aaa;margin-right:4px">${i+1}.</span><span style="font-weight:600">${c.name}</span>${svcBadge(c.svc)}${fundBadge(c.funding)}
+        <div class="csub" style="margin-top:3px">${c.freq}${c.time ? ' · ' + c.time : ''}${c.hrs ? ' · ' + c.hrs + 'h' : ''}</div>
+        <div style="font-size:12px;margin-top:3px">Caregiver: <strong style="font-weight:600">${c.caregiver}</strong>${c.backup ? ' · Backup: ' + c.backup : ''}</div>
+        ${c.phone ? `<div style="font-size:12px;color:#085041;margin-top:2px"><a href="tel:${c.phone}" style="color:#085041;text-decoration:none">${c.phone}</a>${c.address ? ' · ' + c.address : ''}</div>` : ''}
+        ${c.note ? `<div class="note" style="margin-top:4px;padding-top:4px">${c.note}</div>` : ''}
+      </div>
+      ${isAdmin ? `<button class="edit-btn" onclick="openEditClient('${c.id}')">Edit</button>` : ''}
+    </div>
+  </div>`).join('');
+}
+
+function filterCL(f, btn) {
+  clFilter = f;
+  document.querySelectorAll('#clients .flt').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCL();
+}
+
+// ─── SSS ──────────────────────────────────────────────────────────────────────
+function renderSSS() {
+  const q = (document.getElementById('sss-search').value || '').toLowerCase();
+  const isAdmin = currentRole === 'admin';
+  const list = appData.sssClients.filter(c =>
+    !q || (c.name + c.caregiver + c.address).toLowerCase().includes(q));
+  document.getElementById('sss-list').innerHTML = list.map((c, i) => {
+    const hrs = c.hrs ? c.hrs + 'h per visit' : '';
+    return `<div class="card" style="padding:10px 16px;margin-bottom:6px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:700;color:#aaa;margin-right:4px">${i+1}.</span><span style="font-weight:700">${c.name}</span>
+            <span class="svc-badge" style="background:#eeedfe;color:#3c3489">${c.workOrder}</span>
+            <span class="svc-badge svc-cl">Cleaning · SSS</span>
+          </div>
+          <div style="font-size:12px;color:#666;margin-top:4px">${c.address}</div>
+          <div style="font-size:12px;margin-top:3px">Caregiver: <strong>${c.caregiver}</strong>${c.dates ? ' · ' + c.dates : ''}${hrs ? ' · ' + hrs : ''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          <a href="tel:${c.phone}" style="font-size:13px;color:#085041;font-weight:600;text-decoration:none">${c.phone}</a>
+          ${isAdmin ? `<button class="edit-btn" onclick="openEditSSS('${c.id}')">Edit</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── WEEKLY ───────────────────────────────────────────────────────────────────
+function renderWeek() {
+  var isAdmin = currentRole === 'admin';
+  var today = new Date();
+  var year = today.getFullYear();
+  var month = today.getMonth();
+  var rows = '';
+
+  // Header row
+  var header = '<div class="wgh">Caregiver</div>';
+  DAY_KEYS.forEach(function(d) { header += '<div class="wgh">' + d + '</div>'; });
+
+  // Add caregiver bar (admin only)
+  var addBar = '';
+  if (isAdmin) {
+    var opts = '<option value="">— Select caregiver —</option>';
+    appData.caregivers.filter(function(c){ return c.status !== 'HOLD' && c.status !== '—'; }).forEach(function(c){
+      opts += '<option value="' + c.name.split(' ')[0] + '">' + c.name + '</option>';
+    });
+    addBar = '<div class="wgn" style="grid-column:1/-1;padding:6px 10px;background:#f0f9f5;border-top:1px solid #ddd">'
+      + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%">'
+      + '<span style="font-size:11px;color:#085041;font-weight:700">Add caregiver to schedule:</span>'
+      + '<select id="new-cg-select" style="font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;flex:1;min-width:150px">' + opts + '</select>'
+      + '<button class="btn btn-primary" style="padding:5px 12px;font-size:12px" onclick="addCaregiverToSchedule()">Add</button>'
+      + '</div></div>';
+  }
+
+  var weeklyArr = Array.isArray(appData.weekly) ? appData.weekly : Object.values(appData.weekly || {});
+  weeklyArr.forEach(function(w, wi) {
+    var nameCell = '<div class="wgn" style="display:flex;align-items:center;justify-content:space-between;gap:4px">'
+      + '<span>' + w.name + '</span>';
+    if (isAdmin) nameCell += '<button data-wi="' + wi + '" onclick="removeCaregiverFromSchedule(this.dataset.wi)" style="background:none;border:none;cursor:pointer;color:#ddd;font-size:14px;padding:0">×</button>';
+    nameCell += '</div>';
+
+    var dayCells = '';
+    DAY_KEYS.forEach(function(dk, dki) {
+      var items = w.shifts[dk] || [];
+      var cellClass = isAdmin ? 'wgc admin-cell' : 'wgc';
+
+      // Check cancellations safely
+      var cancelledNames = [];
+      try {
+        if (typeof getMonthOverrides === 'function') {
+          var daysInMonth = new Date(year, month + 1, 0).getDate();
+          items.forEach(function(s) {
+            var cn = s.replace(/\s*\([^)]*\)/g, '').trim();
+            var cl = appData.clients.find(function(c) {
+              return c.name.toLowerCase().indexOf(cn.toLowerCase()) >= 0 ||
+                cn.toLowerCase().indexOf(c.name.split(' ')[0].toLowerCase()) >= 0;
+            });
+            if (cl) {
+              for (var dd = 1; dd <= daysInMonth; dd++) {
+                var dt = new Date(year, month, dd);
+                var mi = dt.getDay() === 0 ? 6 : dt.getDay() - 1;
+                if (mi === dki && dt >= today) {
+                  var ov = getMonthOverrides(cl.id, year, month);
+                  if (ov[dd] && ov[dd].cancelled) cancelledNames.push(cn);
+                  break;
+                }
+              }
+            }
+          });
+        }
+      } catch(e) {}
+
+      var cellContent = '';
+      if (items.length) {
+        items.forEach(function(s, si) {
+          var cn = s.replace(/\s*\([^)]*\)/g, '').trim();
+          var isCanc = cancelledNames.indexOf(cn) >= 0;
+          var shiStyle = isCanc ? 'flex:1;background:#fde8e8;color:#c0392b;text-decoration:line-through' : 'flex:1';
+          cellContent += '<div class="shi-wrap">'
+            + '<div class="shi" style="' + shiStyle + '">' + s + (isCanc ? '<span class="sync-badge">CANC</span>' : '') + '</div>';
+          if (isAdmin) {
+            cellContent += '<button class="shi-del" data-wi="' + wi + '" data-dk="' + dk + '" data-si="' + si + '" onclick="removeShiftItem(this.dataset.wi,this.dataset.dk,this.dataset.si);event.stopPropagation()">×</button>';
+          }
+          cellContent += '</div>';
+        });
+      } else if (isAdmin) {
+        cellContent = '<span style="font-size:16px;color:#ccc;line-height:1">+</span>';
+      }
+
+      var extraStyle = items.length ? '' : ' style="min-height:38px;display:flex;align-items:center;justify-content:center"';
+      var clickAttr = isAdmin ? ' data-wi="' + wi + '" data-dk="' + dk + '" onclick="openScheduleCell(this.dataset.wi,this.dataset.dk)"' : '';
+      dayCells += '<div class="' + cellClass + '"' + clickAttr + extraStyle + '>' + cellContent + '</div>';
+    });
+
+    rows += nameCell + dayCells;
+  });
+
+  document.getElementById('week-grid').innerHTML = '<div class="wgrid">' + header + addBar + rows + '</div>';
+}
+
+
+function addCaregiverToSchedule() {
+  const sel = document.getElementById('new-cg-select');
+  const name = sel.value;
+  if (!name) return;
+  var wa3 = Array.isArray(appData.weekly) ? appData.weekly : Object.values(appData.weekly || {});
+  if (wa3.find(function(w){ return w.name === name; })) {
+    sel.value = ''; return;
+  }
+  appData.weekly.push({name, shifts: {}});
+  saveWeekly();
+  renderWeek();
+  populatePrintSelect();
+  populateMonthlyClientSelect();
+  sel.value = '';
+}
+
+function removeCaregiverFromSchedule(wi) {
+  wi = parseInt(wi);
+  if (!confirm('Remove ' + appData.weekly[wi].name + ' from the schedule?')) return;
+  appData.weekly.splice(wi, 1);
+  saveWeekly();
+  renderWeek();
+  populatePrintSelect();
+  populateMonthlyClientSelect();
+}
+
+function removeShiftItem(wi, dk, si) {
+  wi = parseInt(wi); si = parseInt(si);
+  appData.weekly[wi].shifts[dk].splice(si, 1);
+  if (!appData.weekly[wi].shifts[dk].length) delete appData.weekly[wi].shifts[dk];
+  saveWeekly();
+  renderWeek();
+}
+
+function saveWeekly() {
+  if (firebaseURL) writeFirebase('/weekly', appData.weekly);
+  else saveLocal();
+}
+
+let schedCellWi = null, schedCellDk = null;
+
+function openScheduleCell(wi, dk) {
+  wi = parseInt(wi);
+  schedCellWi = wi; schedCellDk = dk;
+  const worker = appData.weekly[wi];
+  const existing = worker.shifts[dk] || [];
+  document.getElementById('sched-modal-title').textContent =
+    `${worker.name} — ${DAYS7[DAY_KEYS.indexOf(dk)]}`;
+  renderScheduleClientPicker(existing, '');
+  document.getElementById('schedule-modal').style.display = 'flex';
+}
+
+function renderScheduleClientPicker(existing, q) {
+  const allClients = appData.clients.map(c => c.name);
+  const filtered = allClients.filter(n => !q || n.toLowerCase().includes(q.toLowerCase()));
+  const existingNames = existing.map(s => s.replace(/\s*\([^)]*\)/, '').trim());
+
+  document.getElementById('sched-modal-body').innerHTML = `
+    <p style="font-size:12px;color:#666;margin-bottom:10px">Tap a client to add them. Tap again to remove. Click the shift label to set hours.</p>
+    <input class="pick-search" placeholder="Search clients..." oninput="renderScheduleClientPicker(appData.weekly[schedCellWi].shifts[schedCellDk]||[], this.value)" value="${q}">
+    <div id="existing-shifts" style="margin-bottom:10px">
+      ${existing.map((s, si) => `
+        <div class="shi-wrap" style="margin-bottom:4px">
+          <div class="shi" style="flex:1;cursor:pointer" onclick="editShiftHours(${si})">${s} <span style="opacity:0.5;font-size:9px">✎</span></div>
+          <button class="shi-del" style="display:block" onclick="removeShiftItem(schedCellWi,schedCellDk,${si});openScheduleCell(schedCellWi,schedCellDk)">×</button>
+        </div>`).join('')}
+    </div>
+    <div class="client-pick-list">
+      ${filtered.map(name => `
+        <div class="client-pick-item ${existingNames.includes(name) ? 'selected' : ''}"
+          onclick="toggleClientInCell('${name.replace(/'/g, "\'")}')">
+          ${existingNames.includes(name) ? '✓' : '+'} ${name}
+        </div>`).join('')}
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px">
+      <button class="btn btn-primary" onclick="closeScheduleModal()">Done</button>
+    </div>`;
+}
+
+function toggleClientInCell(clientName) {
+  const wi = schedCellWi, dk = schedCellDk;
+  if (!appData.weekly[wi].shifts[dk]) appData.weekly[wi].shifts[dk] = [];
+  const shifts = appData.weekly[wi].shifts[dk];
+  const idx = shifts.findIndex(s => s.replace(/\s*\([^)]*\)/, '').trim() === clientName);
+  if (idx >= 0) {
+    shifts.splice(idx, 1);
+    if (!shifts.length) delete appData.weekly[wi].shifts[dk];
+  } else {
+    // Find hours from client data
+    const client = appData.clients.find(c => c.name === clientName);
+    const hrs = client && client.hrs ? client.hrs + 'h' : '';
+    shifts.push(clientName + (hrs ? ' (' + hrs + ')' : ''));
+  }
+  saveWeekly();
+  renderWeek();
+  openScheduleCell(wi, dk);
+}
+
+function editShiftHours(si) {
+  const current = appData.weekly[schedCellWi].shifts[schedCellDk][si];
+  const match = current.match(/\(([^)]+)\)/);
+  const currentHrs = match ? match[1] : '';
+  const newHrs = prompt('Hours for this visit (e.g. 2h, 3h):', currentHrs);
+  if (newHrs === null) return;
+  const baseName = current.replace(/\s*\([^)]*\)/, '').trim();
+  appData.weekly[schedCellWi].shifts[schedCellDk][si] = baseName + (newHrs ? ' (' + newHrs + ')' : '');
+  saveWeekly();
+  renderWeek();
+  openScheduleCell(schedCellWi, schedCellDk);
+}
+
+function closeScheduleModal() {
+  document.getElementById('schedule-modal').style.display = 'none';
+  schedCellWi = null; schedCellDk = null;
+}
+
+// ─── SIN ─────────────────────────────────────────────────────────────────────
+function renderSIN() {
+  const isAdmin = currentRole === 'admin';
+  let html = `<p style="font-size:13px;color:#666;margin-bottom:12px">SIN & work permit expiry tracker. ${isAdmin ? 'Click Edit to update or add a record.' : ''}</p>`;
+
+  if (isAdmin) {
+    html += `<button class="btn btn-primary btn-sm" style="margin-bottom:14px" onclick="openAddSIN()">+ Add caregiver</button>`;
+  }
+
+  html += appData.sinData.map((s, i) => {
+    const cls = s.status !== 'ok' ? 'sin-warn' : 'sin-ok';
+    const icon = s.status === 'expired'
+      ? '<span style="color:#c0392b;font-weight:700">Expired</span>'
+      : s.status === 'warn'
+      ? `<span style="color:#856404;font-weight:700">${s.expiry} — follow up</span>`
+      : `<span style="color:#085041;font-weight:600">${s.expiry}</span>`;
+    return `<div class="${cls}">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <span style="font-weight:600">${s.name}</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          ${icon}
+          ${isAdmin ? `<button class="edit-btn" onclick="openEditSIN(${i})">Edit</button>` : ''}
+        </div>
+      </div>
+      <div style="font-size:12px;color:#666;margin-top:4px">${s.note}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('sin-list').innerHTML = html;
+}
+
+function openAddSIN() {
+  document.getElementById('modal-title-text').textContent = 'Add SIN record';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="frow">
+      <div class="fg"><label>Caregiver name</label><input id="m-sin-name" placeholder="Full name"></div>
+      <div class="fg"><label>Expiry date</label><input type="month" id="m-sin-expiry"></div>
+    </div>
+    <div class="fg" style="margin-bottom:10px"><label>Status</label>
+      <select id="m-sin-status">
+        <option value="ok">OK</option>
+        <option value="warn">Expires soon — follow up</option>
+        <option value="expired">Expired</option>
+      </select>
+    </div>
+    <div class="fg"><label>Notes</label><textarea id="m-sin-note" placeholder="e.g. Also works at Nurse Next Door. 30-day reminder: Aug 2027."></textarea></div>`;
+  document.querySelector('#edit-modal .btn-danger').style.display = 'none';
+  document.querySelector('#edit-modal .btn-primary').onclick = saveSINAdd;
+  document.querySelector('#edit-modal .btn-secondary').textContent = 'Cancel';
+  modalType = 'sin-add'; modalId = null;
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function openEditSIN(i) {
+  const s = appData.sinData[i];
+  document.getElementById('modal-title-text').textContent = 'Edit SIN record: ' + s.name;
+  // Format expiry for month input - handle text dates like "Oct 15, 2026"
+  let expiryVal = '';
+  if (s.expiry && s.expiry !== 'Expired') {
+    const parsed = new Date(s.expiry);
+    if (!isNaN(parsed)) {
+      expiryVal = parsed.getFullYear() + '-' + String(parsed.getMonth()+1).padStart(2,'0');
+    } else if (s.expiry.match(/^\d{4}-\d{2}$/)) {
+      expiryVal = s.expiry;
+    }
+  }
+  document.getElementById('modal-body').innerHTML = `
+    <div class="frow">
+      <div class="fg"><label>Caregiver name</label><input id="m-sin-name" value="${s.name}"></div>
+      <div class="fg"><label>Expiry date</label><input type="month" id="m-sin-expiry" value="${expiryVal}"></div>
+    </div>
+    <div class="fg" style="margin-bottom:10px"><label>Status</label>
+      <select id="m-sin-status">
+        <option value="ok"${s.status==='ok'?' selected':''}>OK</option>
+        <option value="warn"${s.status==='warn'?' selected':''}>Expires soon — follow up</option>
+        <option value="expired"${s.status==='expired'?' selected':''}>Expired</option>
+      </select>
+    </div>
+    <div class="fg"><label>Notes</label><textarea id="m-sin-note">${s.note||''}</textarea></div>`;
+  document.querySelector('#edit-modal .btn-danger').style.display = '';
+  document.querySelector('#edit-modal .btn-primary').onclick = () => saveSINEdit(i);
+  document.querySelector('#edit-modal .btn-secondary').textContent = 'Cancel';
+  modalType = 'sin'; modalId = i;
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function saveSINAdd() {
+  const name = document.getElementById('m-sin-name').value.trim();
+  if (!name) { document.getElementById('m-sin-name').focus(); return; }
+  const expiryRaw = document.getElementById('m-sin-expiry').value;
+  const status = document.getElementById('m-sin-status').value;
+  const note = document.getElementById('m-sin-note').value.trim();
+  let expiry = expiryRaw ? new Date(expiryRaw+'-01').toLocaleDateString('en-CA',{month:'short',year:'numeric'}) : 'TBC';
+  if (status === 'expired') expiry = 'Expired';
+  appData.sinData.push({name, expiry, status, note});
+  saveSINData();
+  closeModal();
+  renderSIN();
+  updateStats();
+}
+
+function saveSINEdit(i) {
+  const name = document.getElementById('m-sin-name').value.trim();
+  if (!name) { document.getElementById('m-sin-name').focus(); return; }
+  const expiryRaw = document.getElementById('m-sin-expiry').value;
+  const status = document.getElementById('m-sin-status').value;
+  const note = document.getElementById('m-sin-note').value.trim();
+  let expiry = expiryRaw ? new Date(expiryRaw+'-01').toLocaleDateString('en-CA',{month:'short',year:'numeric'}) : appData.sinData[i].expiry;
+  if (status === 'expired') expiry = 'Expired';
+  appData.sinData[i] = {name, expiry, status, note};
+  saveSINData();
+  closeModal();
+  renderSIN();
+  updateStats();
+}
+
+function saveSINData() {
+  if (firebaseURL) writeFirebase('/sinData', appData.sinData);
+  else saveLocal();
+}
+
+// ─── AVAILABILITY ─────────────────────────────────────────────────────────────
+function renderAvail() {
+  const active = appData.caregivers.filter(c => c.status !== 'HOLD');
+  const avail = appData.availability || {};
+  const isAdmin = currentRole === 'admin';
+  const opts = ['','AM','PM','Full','Unavail'];
+  let html = `<div class="agrid" style="grid-template-columns:160px repeat(7,minmax(70px,1fr))"><div class="agh">Caregiver</div>`;
+  DAYS7.forEach(d => html += `<div class="agh">${d.slice(0,3)}</div>`);
+  active.forEach(c => {
+    const short = c.name.split(' ')[0] + ' ' + c.name.split(' ').slice(-1)[0];
+    const cav = avail[c.id] || {};
+    html += `<div class="agn">${short}</div>`;
+    DAY_KEYS.forEach(dk => {
+      const val = cav[dk] || '';
+      if (isAdmin) {
+        html += `<div class="agc av-${val}"><select class="av-sel" data-cid="${c.id}" data-day="${dk}" onchange="setAvail(this)">${opts.map(o => `<option${o===val?' selected':''}>${o||'—'}</option>`).join('')}</select></div>`;
+      } else {
+        html += `<div class="agc av-${val}" style="min-height:30px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#555">${val||''}</div>`;
+      }
+    });
+  });
+  html += '</div>';
+  document.getElementById('avail-grid').innerHTML = html;
+}
+
+function setAvail(el) {
+  const cid = el.dataset.cid, d = el.dataset.day;
+  const val = el.value === '—' ? '' : el.value;
+  if (!appData.availability[cid]) appData.availability[cid] = {};
+  appData.availability[cid][d] = val;
+  el.parentElement.className = 'agc av-' + val;
+  if (firebaseURL) {
+    writeFirebase('/availability/' + cid, appData.availability[cid]);
+  } else {
+    saveLocal();
+  }
+}
+
+// ─── ADD CLIENT ───────────────────────────────────────────────────────────────
+let newClients = [];
+let newCGs = [];
+
+function populateCaregiverDropdowns() {
+  const active = appData.caregivers.filter(c => c.status !== 'HOLD' && c.status !== '—');
+  const opts = active.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+  ['fc-caregiver','fg-caregiver'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = opts;
+  });
+  const bk = document.getElementById('fc-backup');
+  if (bk) bk.innerHTML = '<option value="">— None —</option>' + opts;
+}
+
+function calcDur(prefix) {
+  const s = document.getElementById(prefix + '-start').value;
+  const e = document.getElementById(prefix + '-end').value;
+  if (s && e) {
+    const [sh, sm] = s.split(':').map(Number);
+    const [eh, em] = e.split(':').map(Number);
+    const mins = (eh * 60 + em) - (sh * 60 + sm);
+    const el = document.getElementById(prefix + '-dur');
+    if (el) el.value = mins > 0 ? (mins >= 60 ? Math.round(mins / 60 * 10) / 10 + 'h' : mins + 'min') : '';
+  }
+}
+
+function addClient() {
+  const name = document.getElementById('fc-name').value.trim();
+  if (!name) { document.getElementById('fc-name').focus(); return; }
+  const s = document.getElementById('fc-start').value;
+  const e = document.getElementById('fc-end').value;
+  const [sh, sm] = s.split(':').map(Number);
+  const [eh, em] = e.split(':').map(Number);
+  const hrs = Math.round(((eh * 60 + em) - (sh * 60 + sm)) / 60 * 10) / 10;
+  const fmt = t => { const [h,m] = t.split(':').map(Number); return (h%12||12) + (m?':'+m.toString().padStart(2,'0'):'') + (h<12?'am':'pm'); };
+  const client = {
+    id: 'cl_' + uid(),
+    name,
+    caregiver: document.getElementById('fc-caregiver').value,
+    backup: document.getElementById('fc-backup').value,
+    freq: document.getElementById('fc-freq').value || 'Weekly',
+    time: s && e ? fmt(s) + '–' + fmt(e) : '',
+    hrs: hrs > 0 ? hrs : null,
+    svc: document.getElementById('fc-svc').value,
+    funding: document.getElementById('fc-funding').value,
+    phone: document.getElementById('fc-phone').value.trim(),
+    address: document.getElementById('fc-address').value.trim(),
+    note: document.getElementById('fc-notes').value.trim()
+  };
+  appData.clients.push(client);
+  if (firebaseURL) {
+    writeFirebase('/clients/' + client.id, client);
+  } else {
+    saveLocal();
+  }
+  updateStats();
+  renderCL();
+  renderNewClients();
+  const msg = document.getElementById('cl-success');
+  msg.style.display = 'block';
+  setTimeout(() => msg.style.display = 'none', 3000);
+  clearClientForm();
+}
+
+function clearClientForm() {
+  ['fc-name','fc-freq','fc-notes','fc-dur','fc-phone','fc-address'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const fs = document.getElementById('fc-start');
+  const fe = document.getElementById('fc-end');
+  if (fs) fs.value = '10:00';
+  if (fe) fe.value = '12:00';
+}
+
+function renderNewClients() {
+  const el = document.getElementById('new-client-list');
+  if (!el) return;
+  const recent = appData.clients.filter(c => c.id && c.id.startsWith('cl_')).slice(-5).reverse();
+  if (!recent.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div style="font-weight:700;font-size:13px;margin-bottom:8px;color:#085041">Recently added</div>` +
+    recent.map(c => `
+    <div class="ns-item">
+      <div>
+        <div style="font-weight:600">${c.name} <span style="font-weight:400;color:#888">→ ${c.caregiver}</span></div>
+        <div style="font-size:12px;color:#888;margin-top:2px">${c.svc} · ${c.freq} · ${c.funding}</div>
+      </div>
+      <button class="del-btn" onclick="deleteClient('${c.id}')">×</button>
+    </div>`).join('');
+}
+
+function deleteClient(id) {
+  if (!confirm('Remove this client?')) return;
+  appData.clients = appData.clients.filter(c => c.id !== id);
+  if (firebaseURL) writeFirebase('/clients/' + id, null);
+  else saveLocal();
+  updateStats(); renderCL(); renderNewClients();
+}
+
+// ─── ADD CAREGIVER ────────────────────────────────────────────────────────────
+function addCaregiver() {
+  const name = document.getElementById('fg-name').value.trim();
+  if (!name) { document.getElementById('fg-name').focus(); return; }
+  const sinVal = document.getElementById('fg-sin').value;
+  const cg = {
+    id: 'cg_' + uid(),
+    name,
+    status: document.getElementById('fg-status').value,
+    area: document.getElementById('fg-area').value.trim(),
+    phone: document.getElementById('fg-phone').value.trim(),
+    sin: sinVal || '',
+    sinWarn: sinVal ? isExpiringSoon(sinVal) : false,
+    wage: document.getElementById('fg-wage').value.trim(),
+    note: document.getElementById('fg-notes').value.trim()
+  };
+  appData.caregivers.push(cg);
+  if (firebaseURL) writeFirebase('/caregivers/' + cg.id, cg);
+  else saveLocal();
+  updateStats(); renderCG(); populateCaregiverDropdowns(); renderNewCGs();
+  document.getElementById('cg-success').style.display = 'block';
+  setTimeout(() => document.getElementById('cg-success').style.display = 'none', 3000);
+  clearCGForm();
+}
+
+function isExpiringSoon(sinDate) {
+  const exp = new Date(sinDate + '-01');
+  const now = new Date();
+  const diff = (exp - now) / (1000 * 60 * 60 * 24 * 30);
+  return diff < 3;
+}
+
+function clearCGForm() {
+  ['fg-name','fg-area','fg-phone','fg-sin','fg-wage','fg-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+
+function renderNewCGs() {
+  const el = document.getElementById('new-cg-list');
+  if (!el) return;
+  const recent = appData.caregivers.filter(c => c.id && c.id.startsWith('cg_')).slice(-5).reverse();
+  if (!recent.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div style="font-weight:700;font-size:13px;margin-bottom:8px;color:#085041">Recently added</div>` +
+    recent.map(c => `
+    <div class="ns-item">
+      <div>
+        <div style="font-weight:600">${c.name} <span style="font-weight:400;color:#888">${c.status}</span></div>
+        <div style="font-size:12px;color:#888;margin-top:2px">${c.area}</div>
+      </div>
+      <button class="del-btn" onclick="deleteCaregiver('${c.id}')">×</button>
+    </div>`).join('');
+}
+
+function deleteCaregiver(id) {
+  if (!confirm('Remove this caregiver?')) return;
+  appData.caregivers = appData.caregivers.filter(c => c.id !== id);
+  if (firebaseURL) writeFirebase('/caregivers/' + id, null);
+  else saveLocal();
+  updateStats(); renderCG(); populateCaregiverDropdowns(); renderNewCGs();
+}
+
+// ─── EDIT MODAL ───────────────────────────────────────────────────────────────
+function openEditClient(id) {
+  const c = appData.clients.find(x => x.id === id);
+  if (!c) return;
+  modalType = 'client'; modalId = id;
+  document.getElementById('modal-title-text').textContent = 'Edit client: ' + c.name;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="frow"><div class="fg"><label>Name</label><input id="m-name" value="${c.name}"></div>
+    <div class="fg"><label>Funding</label><select id="m-funding">${['Private','PGT','SSS','SSS / Private'].map(f=>`<option${c.funding===f?' selected':''}>${f}</option>`).join('')}</select></div></div>
+    <div class="frow"><div class="fg"><label>Caregiver</label><input id="m-caregiver" value="${c.caregiver}"></div>
+    <div class="fg"><label>Backup</label><input id="m-backup" value="${c.backup||''}"></div></div>
+    <div class="frow"><div class="fg"><label>Service</label><input id="m-svc" value="${c.svc}"></div>
+    <div class="fg"><label>Frequency</label><input id="m-freq" value="${c.freq}"></div></div>
+    <div class="frow"><div class="fg"><label>Phone</label><input id="m-phone" value="${c.phone||''}"></div>
+    <div class="fg"><label>Address</label><input id="m-address" value="${c.address||''}"></div></div>
+    <div class="fg"><label>Notes</label><textarea id="m-note">${c.note||''}</textarea></div>`;
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function openEditCG(id) {
+  const c = appData.caregivers.find(x => x.id === id);
+  if (!c) return;
+  modalType = 'caregiver'; modalId = id;
+  document.getElementById('modal-title-text').textContent = 'Edit caregiver: ' + c.name;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="frow"><div class="fg"><label>Name</label><input id="m-name" value="${c.name}"></div>
+    <div class="fg"><label>Status</label><select id="m-status">${['Companion','RCA','CPI','HOLD','—'].map(s=>`<option${c.status===s?' selected':''}>${s}</option>`).join('')}</select></div></div>
+    <div class="frow"><div class="fg"><label>Area</label><input id="m-area" value="${c.area}"></div>
+    <div class="fg"><label>Phone</label><input id="m-phone" value="${c.phone||''}"></div></div>
+    <div class="frow"><div class="fg"><label>SIN expiry</label><input type="month" id="m-sin" value="${c.sin||''}"></div>
+    <div class="fg"><label>Wage</label><input id="m-wage" value="${c.wage||''}"></div></div>
+    <div class="fg"><label>Notes</label><textarea id="m-note">${c.note||''}</textarea></div>`;
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function openEditSSS(id) {
+  const c = appData.sssClients.find(x => x.id === id);
+  if (!c) return;
+  modalType = 'sss'; modalId = id;
+  document.getElementById('modal-title-text').textContent = 'Edit SSS client: ' + c.name;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="frow"><div class="fg"><label>Name</label><input id="m-name" value="${c.name}"></div>
+    <div class="fg"><label>Work order</label><input id="m-wo" value="${c.workOrder}"></div></div>
+    <div class="frow"><div class="fg"><label>Phone</label><input id="m-phone" value="${c.phone}"></div>
+    <div class="fg"><label>Caregiver</label><input id="m-caregiver" value="${c.caregiver}"></div></div>
+    <div class="frow"><div class="fg"><label>Address</label><input id="m-address" value="${c.address}"></div>
+    <div class="fg"><label>Dates</label><input id="m-dates" value="${c.dates||''}"></div></div>
+    <div class="fg"><label>Hours per visit</label><input type="number" id="m-hrs" value="${c.hrs||''}"></div>`;
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function saveModal() {
+  if (modalType === 'client') {
+    const c = appData.clients.find(x => x.id === modalId);
+    if (c) {
+      c.name = document.getElementById('m-name').value;
+      c.funding = document.getElementById('m-funding').value;
+      c.caregiver = document.getElementById('m-caregiver').value;
+      c.backup = document.getElementById('m-backup').value;
+      c.svc = document.getElementById('m-svc').value;
+      c.freq = document.getElementById('m-freq').value;
+      c.phone = document.getElementById('m-phone').value;
+      c.address = document.getElementById('m-address').value;
+      c.note = document.getElementById('m-note').value;
+      if (firebaseURL) writeFirebase('/clients/' + modalId, c);
+      else saveLocal();
+      renderCL();
+    }
+  } else if (modalType === 'caregiver') {
+    const c = appData.caregivers.find(x => x.id === modalId);
+    if (c) {
+      c.name = document.getElementById('m-name').value;
+      c.status = document.getElementById('m-status').value;
+      c.area = document.getElementById('m-area').value;
+      c.phone = document.getElementById('m-phone').value;
+      c.sin = document.getElementById('m-sin').value;
+      c.sinWarn = c.sin ? isExpiringSoon(c.sin) : false;
+      c.wage = document.getElementById('m-wage').value;
+      c.note = document.getElementById('m-note').value;
+      if (firebaseURL) writeFirebase('/caregivers/' + modalId, c);
+      else saveLocal();
+      renderCG(); populateCaregiverDropdowns();
+    }
+  } else if (modalType === 'sss') {
+    const c = appData.sssClients.find(x => x.id === modalId);
+    if (c) {
+      c.name = document.getElementById('m-name').value;
+      c.workOrder = document.getElementById('m-wo').value;
+      c.phone = document.getElementById('m-phone').value;
+      c.caregiver = document.getElementById('m-caregiver').value;
+      c.address = document.getElementById('m-address').value;
+      c.dates = document.getElementById('m-dates').value;
+      c.hrs = parseFloat(document.getElementById('m-hrs').value) || null;
+      if (firebaseURL) writeFirebase('/sssClients/' + modalId, c);
+      else saveLocal();
+      renderSSS();
+    }
+  }
+  closeModal();
+}
+
+function deleteModalItem() {
+  if (!confirm('Are you sure you want to delete this record?')) return;
+  if (modalType === 'sin') {
+    appData.sinData.splice(modalId, 1);
+    saveSINData();
+    closeModal();
+    renderSIN();
+    updateStats();
+    return;
+  }
+  if (modalType === 'client') {
+    appData.clients = appData.clients.filter(c => c.id !== modalId);
+    if (firebaseURL) writeFirebase('/clients/' + modalId, null);
+    else saveLocal();
+    updateStats(); renderCL();
+  } else if (modalType === 'caregiver') {
+    appData.caregivers = appData.caregivers.filter(c => c.id !== modalId);
+    if (firebaseURL) writeFirebase('/caregivers/' + modalId, null);
+    else saveLocal();
+    updateStats(); renderCG(); populateCaregiverDropdowns();
+  } else if (modalType === 'sss') {
+    appData.sssClients = appData.sssClients.filter(c => c.id !== modalId);
+    if (firebaseURL) writeFirebase('/sssClients/' + modalId, null);
+    else saveLocal();
+    updateStats(); renderSSS();
+  }
+  closeModal();
+}
+
+function closeModal() {
+  document.getElementById('edit-modal').style.display = 'none';
+  // Restore modal footer buttons
+  const danger = document.querySelector('#edit-modal .btn-danger');
+  const primary = document.querySelector('#edit-modal .btn-primary');
+  const secondary = document.querySelector('#edit-modal .btn-secondary');
+  if (danger) danger.style.display = '';
+  if (primary) primary.style.display = '';
+  if (secondary) secondary.textContent = 'Cancel';
+  modalType = ''; modalId = null;
+}
+
+// ─── PRINT ────────────────────────────────────────────────────────────────────
+function populatePrintSelect() {
+  const sel = document.getElementById('print-select');
+  if (!sel) return;
+  var wa = Array.isArray(appData.weekly) ? appData.weekly : Object.values(appData.weekly || {});
+  sel.innerHTML = wa.map(function(w){ return '<option value="' + w.name + '">' + w.name + '</option>'; }).join('');
+  renderPrint();
+}
+
+function renderPrint() {
+  const name = document.getElementById('print-select').value;
+  var wa2 = Array.isArray(appData.weekly) ? appData.weekly : Object.values(appData.weekly || {});
+  const worker = wa2.find(function(w){ return w.name === name; });
+  const cg = appData.caregivers.find(c => c.name.includes(name) || c.name.split(' ')[0] === name);
+  if (!worker) { document.getElementById('print-output').innerHTML = ''; return; }
+  const today = new Date().toLocaleDateString('en-CA', {year:'numeric',month:'long',day:'numeric'});
+  let html = `<div class="print-card"><div class="ph"><div class="ph-name">${cg ? cg.name : name}</div><div class="ph-sub">${cg ? cg.area + ' · ' : ''} Weekly recurring schedule · ${today}</div></div>`;
+  DAYS7.forEach((day, i) => {
+    const dk = DAY_KEYS[i];
+    const items = worker.shifts[dk] || [];
+    html += `<div class="pd"><div class="pd-title">${day}</div>`;
+    if (!items.length) html += '<div class="no-s">No scheduled visits</div>';
+    else items.forEach(s => {
+      const m = s.match(/\(([^)]+)\)/);
+      const dur = m ? m[1] : '';
+      const client = s.replace(/\s*\([^)]*\)/, '').trim();
+      html += `<div class="ps"><div class="pt">${dur}</div><div>${client}</div></div>`;
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  document.getElementById('print-output').innerHTML = html;
+}
+
+// ─── SETTINGS ─────────────────────────────────────────────────────────────────
+function saveFirebaseConfig() {
+  const url = document.getElementById('fb-url').value.trim().replace(/\/$/, '');
+  if (!url || !url.startsWith('https://')) {
+    document.getElementById('fb-status').innerHTML = '<span style="color:#c0392b">Please enter a valid Firebase URL starting with https://</span>';
+    return;
+  }
+  localStorage.setItem('hh_firebase_url', url);
+  firebaseURL = url;
+  document.getElementById('fb-status').innerHTML = '<span style="color:#085041">Testing connection...</span>';
+  // Test with a simple write first
+  fetch(url + '/ping.json', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(Date.now())
+  })
+  .then(r => r.json())
+  .then(() => {
+    document.getElementById('fb-status').innerHTML = '<span style="color:#085041">✓ Connected! Loading data...</span>';
+    connectFirebase();
+  })
+  .catch(e => {
+    document.getElementById('fb-status').innerHTML = '<span style="color:#c0392b">Connection failed — check your URL and Firebase rules are set to true</span>';
+    setSyncStatus('offline', 'Connection failed');
+  });
+}
+
+function savePins() {
+  const a = document.getElementById('new-admin-pin').value;
+  const s = document.getElementById('new-staff-pin').value;
+  if ((a && a.length !== 4) || (s && s.length !== 4)) {
+    document.getElementById('pin-save-msg').innerHTML = '<span style="color:#c0392b">PINs must be exactly 4 digits.</span>';
+    return;
+  }
+  const current = loadPins();
+  const pins = { admin: a || current.admin, staff: s || current.staff };
+  localStorage.setItem('hh_pins', JSON.stringify(pins));
+  document.getElementById('pin-save-msg').textContent = 'PINs updated!';
+  document.getElementById('new-admin-pin').value = '';
+  document.getElementById('new-staff-pin').value = '';
+  setTimeout(() => document.getElementById('pin-save-msg').textContent = '', 3000);
+}
+
+function showSetup() { showTab('settings', document.getElementById('tab-settings')); }
+
+
+// ─── PROGRESS NOTES ───────────────────────────────────────────────────────────
+function renderNotesClientList() {
+  const q = (document.getElementById('notes-search').value || '').toLowerCase();
+  const all = appData.clients;
+  const list = all.filter(c => !q || c.name.toLowerCase().includes(q));
+  const notes = appData.progressNotes || {};
+
+  document.getElementById('notes-client-list').innerHTML = list.map((c, i) => {
+    const clientNotes = notes[c.id] || [];
+    const count = clientNotes.length;
+    const latest = count ? clientNotes[clientNotes.length - 1] : null;
+    return `<div class="card" style="padding:10px 14px;margin-bottom:6px">
+      <div style="display:flex;align-items:center;gap:8px;cursor:pointer" onclick="toggleNotes('${c.id}')">
+        <div style="flex:1">
+          <span style="font-size:12px;font-weight:700;color:#aaa;margin-right:4px">${i+1}.</span><span style="font-weight:600">${c.name}</span>
+          <span style="font-size:11px;color:#888;margin-left:8px">${count} note${count !== 1 ? 's' : ''}</span>
+          ${latest ? `<div style="font-size:11px;color:#aaa;margin-top:2px">Last: ${latest.date} — ${latest.text.slice(0,60)}${latest.text.length > 60 ? '…' : ''}</div>` : ''}
+        </div>
+        <span style="color:#085041;font-size:18px;font-weight:300" id="arrow-${c.id}">+</span>
+      </div>
+      <div class="notes-panel" id="notes-${c.id}">
+        <div id="notes-list-${c.id}"></div>
+        <div class="add-note-row">
+          <textarea id="note-input-${c.id}" placeholder="Add a progress note..."></textarea>
+          <button onclick="addNote('${c.id}')">Add</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleNotes(clientId) {
+  const panel = document.getElementById('notes-' + clientId);
+  const arrow = document.getElementById('arrow-' + clientId);
+  const isOpen = panel.classList.contains('open');
+  panel.classList.toggle('open', !isOpen);
+  arrow.textContent = isOpen ? '+' : '−';
+  if (!isOpen) renderNotesList(clientId);
+}
+
+function renderNotesList(clientId) {
+  const notes = (appData.progressNotes[clientId] || []).slice().reverse();
+  const el = document.getElementById('notes-list-' + clientId);
+  if (!el) return;
+  if (!notes.length) {
+    el.innerHTML = '<div style="font-size:12px;color:#aaa;font-style:italic;margin-bottom:8px">No notes yet.</div>';
+    return;
+  }
+  el.innerHTML = notes.map((n, i) => `
+    <div class="note-entry">
+      <div class="note-date">${n.date}</div>
+      <div class="note-text">${n.text}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+        <span class="note-author">${n.author || ''}</span>
+        ${currentRole === 'admin' ? `<button onclick="deleteNote('${clientId}',${notes.length - 1 - i})" style="background:none;border:none;cursor:pointer;color:#ccc;font-size:13px;padding:0">×</button>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function addNote(clientId) {
+  const input = document.getElementById('note-input-' + clientId);
+  const text = input.value.trim();
+  if (!text) return;
+  if (!appData.progressNotes[clientId]) appData.progressNotes[clientId] = [];
+  const now = new Date();
+  const date = now.toLocaleDateString('en-CA', {year:'numeric', month:'short', day:'numeric'});
+  const time = now.toLocaleTimeString('en-CA', {hour:'2-digit', minute:'2-digit'});
+  const note = {
+    date: date + ' ' + time,
+    text,
+    author: currentRole === 'admin' ? 'Admin' : 'Staff'
+  };
+  appData.progressNotes[clientId].push(note);
+  input.value = '';
+  if (firebaseURL) {
+    writeFirebase('/progressNotes/' + clientId, appData.progressNotes[clientId]);
+  } else {
+    saveLocal();
+  }
+  renderNotesList(clientId);
+  renderNotesClientList();
+  // re-open the panel
+  const panel = document.getElementById('notes-' + clientId);
+  const arrow = document.getElementById('arrow-' + clientId);
+  if (panel) { panel.classList.add('open'); if(arrow) arrow.textContent = '−'; }
+  renderNotesList(clientId);
+}
+
+function deleteNote(clientId, index) {
+  if (!confirm('Delete this note?')) return;
+  appData.progressNotes[clientId].splice(index, 1);
+  if (firebaseURL) writeFirebase('/progressNotes/' + clientId, appData.progressNotes[clientId]);
+  else saveLocal();
+  renderNotesList(clientId);
+  renderNotesClientList();
+}
+
+
+function renderPGT() {
+  const q = (document.getElementById('pgt-search').value || '').toLowerCase();
+  const isAdmin = currentRole === 'admin';
+  const list = appData.clients.filter(c =>
+    c.funding.includes('PGT') &&
+    (!q || (c.name + c.caregiver + (c.address||'')).toLowerCase().includes(q))
+  );
+  if (!list.length) {
+    document.getElementById('pgt-list').innerHTML = '<div style="font-size:13px;color:#aaa;font-style:italic;padding:12px 0">No clients found.</div>';
+    return;
+  }
+  document.getElementById('pgt-list').innerHTML = list.map((c, i) => {
+    const notes = (appData.progressNotes[c.id] || []);
+    const noteCount = notes.length;
+    const latest = noteCount ? notes[notes.length - 1] : null;
+    return `<div class="card" style="padding:12px 16px;margin-bottom:8px">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:700;color:#aaa">${i+1}.</span><span style="font-weight:700">${c.name}</span>
+            ${svcBadge(c.svc)}${fundBadge(c.funding)}
+          </div>
+          <div style="font-size:12px;color:#666;margin-top:4px">${c.address||''}</div>
+          <div style="font-size:12px;margin-top:3px">
+            Caregiver: <strong style="font-weight:600">${c.caregiver}</strong>
+            ${c.backup ? ' · Backup: ' + c.backup : ''}
+          </div>
+          <div style="font-size:12px;margin-top:2px;display:flex;gap:12px;flex-wrap:wrap">
+            ${c.phone ? `<a href="tel:${c.phone}" style="color:#085041;text-decoration:none;font-weight:600">${c.phone}</a>` : ''}
+            ${c.freq ? '<span style="color:#888">' + c.freq + (c.time ? ' · ' + c.time : '') + (c.hrs ? ' · ' + c.hrs + 'h' : '') + '</span>' : ''}
+          </div>
+          ${c.note ? `<div class="note" style="margin-top:6px;padding-top:6px">${c.note}</div>` : ''}
+          ${latest ? `<div style="font-size:11px;color:#aaa;margin-top:4px">Last note: ${latest.date} — ${latest.text.slice(0,80)}${latest.text.length>80?'…':''}</div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-items:flex-end">
+          <button class="notes-btn" onclick="openClientNotes('${c.id}','${c.name}')">Notes (${noteCount})</button>
+          <button class="notes-btn" onclick="openClientNotes('${c.id}','${c.name}')">Notes (${noteCount})</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderPrivate() {
+  const q = (document.getElementById('private-search').value || '').toLowerCase();
+  const isAdmin = currentRole === 'admin';
+  const list = appData.clients.filter(c =>
+    c.funding.includes('Private') &&
+    (!q || (c.name + c.caregiver + (c.address||'')).toLowerCase().includes(q))
+  );
+  if (!list.length) {
+    document.getElementById('private-list').innerHTML = '<div style="font-size:13px;color:#aaa;font-style:italic;padding:12px 0">No clients found.</div>';
+    return;
+  }
+  document.getElementById('private-list').innerHTML = list.map(c => {
+    const notes = (appData.progressNotes[c.id] || []);
+    const noteCount = notes.length;
+    const latest = noteCount ? notes[notes.length - 1] : null;
+    return `<div class="card" style="padding:12px 16px;margin-bottom:8px">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:700;color:#aaa">${i+1}.</span><span style="font-weight:700">${c.name}</span>
+            ${svcBadge(c.svc)}${fundBadge(c.funding)}
+          </div>
+          <div style="font-size:12px;color:#666;margin-top:4px">${c.address||''}</div>
+          <div style="font-size:12px;margin-top:3px">
+            Caregiver: <strong style="font-weight:600">${c.caregiver}</strong>
+            ${c.backup ? ' · Backup: ' + c.backup : ''}
+          </div>
+          <div style="font-size:12px;margin-top:2px;display:flex;gap:12px;flex-wrap:wrap">
+            ${c.phone ? `<a href="tel:${c.phone}" style="color:#085041;text-decoration:none;font-weight:600">${c.phone}</a>` : ''}
+            ${c.freq ? '<span style="color:#888">' + c.freq + (c.time ? ' · ' + c.time : '') + (c.hrs ? ' · ' + c.hrs + 'h' : '') + '</span>' : ''}
+          </div>
+          ${c.note ? `<div class="note" style="margin-top:6px;padding-top:6px">${c.note}</div>` : ''}
+          ${latest ? `<div style="font-size:11px;color:#aaa;margin-top:4px">Last note: ${latest.date} — ${latest.text.slice(0,80)}${latest.text.length>80?'…':''}</div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-items:flex-end">
+          <button class="notes-btn" onclick="openClientNotes('${c.id}','${c.name}')">Notes (${noteCount})</button>
+          <button class="notes-btn" onclick="openClientNotes('${c.id}','${c.name}')">Notes (${noteCount})</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Quick notes modal for PGT/Private tabs
+function openClientNotes(clientId, clientName) {
+  const notes = (appData.progressNotes[clientId] || []).slice().reverse();
+  const isAdmin = currentRole === 'admin';
+  document.getElementById('modal-title-text').textContent = 'Progress notes — ' + clientName;
+  document.getElementById('modal-body').innerHTML = `
+    <div id="qnotes-list" style="max-height:300px;overflow-y:auto;margin-bottom:12px">
+      ${notes.length ? notes.map((n,i) => `
+        <div class="note-entry">
+          <div class="note-date">${n.date}</div>
+          <div class="note-text">${n.text}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+            <span class="note-author">${n.author||''}</span>
+            ${isAdmin ? `<button onclick="deleteNoteModal('${clientId}',${notes.length-1-i})" style="background:none;border:none;cursor:pointer;color:#ccc;font-size:13px">×</button>` : ''}
+          </div>
+        </div>`).join('') : '<div style="font-size:12px;color:#aaa;font-style:italic;margin-bottom:8px">No notes yet.</div>'}
+    </div>
+    <div class="add-note-row">
+      <textarea id="qnote-input" placeholder="Add a progress note..."></textarea>
+      <button onclick="addNoteModal('${clientId}')">Add</button>
+    </div>`;
+  // Hide delete button in modal footer since we handle per-note
+  document.querySelector('#edit-modal .btn-danger').style.display = 'none';
+  document.querySelector('#edit-modal .btn-primary').style.display = 'none';
+  document.querySelector('#edit-modal .btn-secondary').textContent = 'Close';
+  modalType = 'notes'; modalId = clientId;
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function addNoteModal(clientId) {
+  const input = document.getElementById('qnote-input');
+  const text = input.value.trim();
+  if (!text) return;
+  if (!appData.progressNotes[clientId]) appData.progressNotes[clientId] = [];
+  const now = new Date();
+  const date = now.toLocaleDateString('en-CA', {year:'numeric',month:'short',day:'numeric'});
+  const time = now.toLocaleTimeString('en-CA', {hour:'2-digit',minute:'2-digit'});
+  appData.progressNotes[clientId].push({date: date+' '+time, text, author: currentRole==='admin'?'Admin':'Staff'});
+  if (firebaseURL) writeFirebase('/progressNotes/'+clientId, appData.progressNotes[clientId]);
+  else saveLocal();
+  // Refresh modal
+  const c = appData.clients.find(x=>x.id===clientId);
+  openClientNotes(clientId, c ? c.name : '');
+  renderPGT(); renderPrivate();
+}
+
+function deleteNoteModal(clientId, index) {
+  if (!confirm('Delete this note?')) return;
+  appData.progressNotes[clientId].splice(index, 1);
+  if (firebaseURL) writeFirebase('/progressNotes/'+clientId, appData.progressNotes[clientId]);
+  else saveLocal();
+  const c = appData.clients.find(x=>x.id===clientId);
+  openClientNotes(clientId, c ? c.name : '');
+  renderPGT(); renderPrivate();
+}
+
+
+// ─── MONTHLY SCHEDULES ────────────────────────────────────────────────────────
+let currentMonthDate = new Date();
+currentMonthDate.setDate(1);
+
+function populateMonthlyClientSelect() {
+  const sel = document.getElementById('monthly-client-select');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Select a client —</option>' +
+    appData.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+}
+
+function renderMonthly() {
+  const clientId = document.getElementById('monthly-client-select').value;
+  if (!clientId) {
+    document.getElementById('monthly-content').innerHTML = '<div style="font-size:13px;color:#aaa;font-style:italic;padding:20px 0">Select a client to view their monthly schedule.</div>';
+    document.getElementById('monthly-warning').style.display = 'none';
+    return;
+  }
+  const client = appData.clients.find(c => c.id === clientId);
+  if (!client) return;
+
+  // Check if client appears in weekly schedule
+  const clientFirstName = client.name.split(' ')[0].toLowerCase();
+  let foundInWeekly = false;
+  var wa4 = Array.isArray(appData.weekly) ? appData.weekly : Object.values(appData.weekly || {});
+  wa4.forEach(w => {
+    DAY_KEYS.forEach(dk => {
+      const shifts = w.shifts[dk] || [];
+      if (shifts.some(s => s.toLowerCase().includes(clientFirstName))) foundInWeekly = true;
+    });
+  });
+
+  const warningEl = document.getElementById('monthly-warning');
+  if (!foundInWeekly) {
+    warningEl.style.display = 'block';
+    warningEl.innerHTML = `<strong>⚠ Not on weekly schedule</strong>${client.name} doesn't appear in the weekly schedule yet — their recurring visits won't auto-fill on the calendar. <a href="#" onclick="showTab('schedule',document.querySelector('.tab:nth-child(5)'));return false;" style="color:#856404;font-weight:700">Go to Weekly schedule →</a>`;
+  } else {
+    warningEl.style.display = 'none';
+  }
+
+  renderMonthlyCalendar(client);
+}
+
+function getRecurringDays(client) {
+  // Work out which days of week client has recurring visits from weekly schedule
+  const recurringDays = [];
+  var wa4 = Array.isArray(appData.weekly) ? appData.weekly : Object.values(appData.weekly || {});
+  wa4.forEach(w => {
+    DAY_KEYS.forEach((dk, di) => {
+      const shifts = w.shifts[dk] || [];
+      if (shifts.some(s => s.toLowerCase().includes(client.name.toLowerCase().split(' ')[0].toLowerCase()) ||
+          client.name.toLowerCase().includes(s.replace(/\s*\([^)]*\)/,'').trim().toLowerCase()))) {
+        if (!recurringDays.includes(di)) recurringDays.push(di); // 0=Mon...6=Sun
+      }
+    });
+  });
+  // Also infer from frequency
+  if (!recurringDays.length && client.freq) {
+    const f = client.freq.toLowerCase();
+    if (f.includes('daily')) return [0,1,2,3,4,5,6];
+    if (f.includes('mon') && f.includes('wed')) return [0,2];
+    if (f.includes('mon') && f.includes('fri')) return [0,4];
+    if (f.includes('tue') && f.includes('thu')) return [1,3];
+    if (f.includes('weekly')) return [0]; // default Monday
+    if (f.includes('twice a week')) return [0,3];
+    if (f.includes('3x')) return [0,2,4];
+    if (f.includes('4x')) return [0,1,2,3];
+  }
+  return recurringDays;
+}
+
+function getMonthOverrides(clientId, year, month) {
+  // Get manual overrides stored in progressNotes under key 'schedule_YYYY_MM'
+  const key = 'schedule_' + year + '_' + String(month+1).padStart(2,'0');
+  if (!appData.progressNotes) appData.progressNotes = {};
+  if (!appData.progressNotes[clientId + '_' + key]) return {};
+  try { return JSON.parse(appData.progressNotes[clientId + '_' + key]); } catch(e) { return {}; }
+}
+
+function saveMonthOverride(clientId, year, month, day, data) {
+  const key = 'schedule_' + year + '_' + String(month+1).padStart(2,'0');
+  const storeKey = clientId + '_' + key;
+  if (!appData.progressNotes) appData.progressNotes = {};
+  let overrides = {};
+  try { overrides = JSON.parse(appData.progressNotes[storeKey] || '{}'); } catch(e) {}
+  if (data === null) { delete overrides[day]; } else { overrides[day] = data; }
+  appData.progressNotes[storeKey] = JSON.stringify(overrides);
+  if (firebaseURL) writeFirebase('/progressNotes/' + storeKey, appData.progressNotes[storeKey]);
+  else saveLocal();
+}
+
+function renderMonthlyCalendar(client) {
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+  const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const today = new Date();
+  const recurringDays = getRecurringDays(client);
+  const overrides = getMonthOverrides(client.id, year, month);
+  const isAdmin = currentRole === 'admin';
+
+  // Build visit list for printable schedule
+  const visitDates = [];
+
+  let html = `
+    <div class="month-nav">
+      <button onclick="changeMonth(-1)">← Prev</button>
+      <div class="month-title">${currentMonthDate.toLocaleDateString('en-CA',{month:'long',year:'numeric'})}</div>
+      <button onclick="changeMonth(1)">Next →</button>
+    </div>
+    <div class="visit-legend">
+      <div style="display:flex;align-items:center;gap:4px"><div class="legend-dot" style="background:#e1f5ee;border:1px solid #9fe1cb"></div><span>Scheduled visit</span></div>
+      <div style="display:flex;align-items:center;gap:4px"><div class="legend-dot" style="background:#fde8e8;border:1px solid #f5c6c6"></div><span>Cancelled</span></div>
+      <div style="display:flex;align-items:center;gap:4px"><div class="legend-dot" style="background:#fff3cd;border:1px solid #ffc107"></div><span>Added visit</span></div>
+    </div>
+    <div class="cal-wrap"><div class="cal">`;
+
+  // Day headers - start Monday
+  ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d => {
+    html += `<div class="cal-head">${d}</div>`;
+  });
+
+  // Blank cells - adjust for Monday start (getDay returns 0=Sun)
+  const startBlank = firstDay === 0 ? 6 : firstDay - 1;
+  for (let i = 0; i < startBlank; i++) html += '<div class="cal-day empty"></div>';
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month, d);
+    const dayOfWeek = date.getDay(); // 0=Sun
+    // Convert to Mon-based index: Mon=0...Sun=6
+    const monIdx = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const isToday = today.getFullYear()===year && today.getMonth()===month && today.getDate()===d;
+    const override = overrides[d];
+    const isRecurring = recurringDays.includes(monIdx);
+    const isCancelled = override && override.cancelled;
+    const isAdded = override && override.added;
+    const hasVisit = (isRecurring && !isCancelled) || isAdded;
+
+    let cls = 'cal-day';
+    if (isCancelled) cls += ' cancelled';
+    else if (hasVisit) cls += ' has-visit';
+    if (isToday) cls += ' today';
+    if (isAdded) cls = cls.replace('has-visit','') + ' has-visit'; 
+
+    const visitTime = override && override.time ? override.time : (client.time || '');
+    const caregiver = override && override.caregiver ? override.caregiver : client.caregiver;
+
+    if (hasVisit) visitDates.push({d, dayName: date.toLocaleDateString('en-CA',{weekday:'short'}), time: visitTime, caregiver, cancelled: false});
+    if (isCancelled) visitDates.push({d, dayName: date.toLocaleDateString('en-CA',{weekday:'short'}), time: visitTime, caregiver, cancelled: true});
+
+    const clickHandler = isAdmin ? `onclick="openDayModal(${d},${monIdx},'${client.id}')"` : `onclick="openDayModalView(${d},'${client.id}')"`;
+
+    html += `<div class="${cls}" ${clickHandler}>
+      <div class="cal-date">${d}</div>
+      ${isCancelled ? `<div class="cal-cancel">${visitTime||'Visit'}</div>` : ''}
+      ${hasVisit && !isCancelled ? `<div class="cal-visit">${visitTime||'Visit'}<br><span style="font-weight:400;font-size:8px">${caregiver.split('/')[0].trim()}</span></div>` : ''}
+      ${isAdded ? '<div style="font-size:8px;color:#856404;font-weight:700">ADDED</div>' : ''}
+    </div>`;
+  }
+
+  html += '</div></div>';
+
+  // Printable list
+  html += `<div id="monthly-print-list" class="print-month" style="margin-top:16px;border:1px solid #e8e6e0;border-radius:10px">
+    <div class="print-month-header">
+      <div style="font-size:16px;font-weight:700;color:#085041">${client.name}</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">${currentMonthDate.toLocaleDateString('en-CA',{month:'long',year:'numeric'})} · ${client.svc} · ${client.funding}</div>
+      <div style="font-size:12px;color:#666;margin-top:2px">Caregiver: ${client.caregiver}${client.backup?' · Backup: '+client.backup:''}</div>
+    </div>
+    ${visitDates.sort((a,b)=>a.d-b.d).map(v => `
+      <div class="print-visit-row ${v.cancelled?'cancelled':''}">
+        <div style="min-width:80px;font-weight:600">${v.dayName} ${String(v.d).padStart(2,'0')}</div>
+        <div style="min-width:80px;color:#666">${v.time||'—'}</div>
+        <div style="flex:1">${v.caregiver}</div>
+        ${v.cancelled ? '<div style="color:#c0392b;font-size:11px">CANCELLED</div>' : ''}
+      </div>`).join('')}
+    ${!visitDates.length ? '<div style="font-size:13px;color:#aaa;font-style:italic">No visits scheduled this month.</div>' : ''}
+    <div style="font-size:12px;color:#aaa;margin-top:12px;padding-top:10px;border-top:1px solid #eee">Total visits: ${visitDates.filter(v=>!v.cancelled).length}</div>
+  </div>`;
+
+  document.getElementById('monthly-content').innerHTML = html;
+}
+
+function changeMonth(dir) {
+  currentMonthDate.setMonth(currentMonthDate.getMonth() + dir);
+  renderMonthly();
+}
+
+let dayModalClientId = null, dayModalDay = null, dayModalMonIdx = null;
+
+function openDayModal(day, monIdx, clientId) {
+  dayModalDay = day; dayModalMonIdx = monIdx; dayModalClientId = clientId;
+  const client = appData.clients.find(c => c.id === clientId);
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+  const overrides = getMonthOverrides(clientId, year, month);
+  const override = overrides[day] || {};
+  const recurringDays = getRecurringDays(client);
+  const isRecurring = recurringDays.includes(monIdx);
+  const date = new Date(year, month, day);
+  const dateStr = date.toLocaleDateString('en-CA',{weekday:'long',month:'long',day:'numeric'});
+
+  document.getElementById('day-modal-title').textContent = dateStr;
+  document.getElementById('day-modal-body').innerHTML = `
+    <div style="font-size:13px;color:#666;margin-bottom:14px">
+      ${isRecurring ? 'This is a <strong>recurring visit day</strong> for '+client.name+'.' : 'No recurring visit on this day.'}
+    </div>
+    <div class="fg" style="margin-bottom:10px">
+      <label>Visit time</label>
+      <input type="text" id="dm-time" value="${override.time || client.time || ''}" placeholder="e.g. 10am–12pm">
+    </div>
+    <div class="fg" style="margin-bottom:14px">
+      <label>Caregiver</label>
+      <input type="text" id="dm-caregiver" value="${override.caregiver || client.caregiver || ''}" placeholder="Caregiver name">
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${isRecurring && !override.cancelled ? `<button class="btn btn-danger btn-sm" onclick="cancelVisit()">Cancel this visit</button>` : ''}
+      ${override.cancelled ? `<button class="btn btn-primary btn-sm" onclick="restoreVisit()">Restore visit</button>` : ''}
+      ${!isRecurring ? `<button class="btn btn-primary btn-sm" onclick="addExtraVisit()">Add visit this day</button>` : ''}
+      ${override.added ? `<button class="btn btn-danger btn-sm" onclick="removeAddedVisit()">Remove added visit</button>` : ''}
+      <button class="btn btn-primary btn-sm" onclick="saveDayChanges()">Save changes</button>
+      <button class="btn btn-secondary btn-sm" onclick="closeDayModal()">Close</button>
+    </div>`;
+  document.getElementById('day-modal').style.display = 'flex';
+}
+
+function openDayModalView(day, clientId) {
+  const client = appData.clients.find(c => c.id === clientId);
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+  const overrides = getMonthOverrides(clientId, year, month);
+  const override = overrides[day] || {};
+  const date = new Date(year, month, day);
+  const dateStr = date.toLocaleDateString('en-CA',{weekday:'long',month:'long',day:'numeric'});
+  document.getElementById('day-modal-title').textContent = dateStr;
+  document.getElementById('day-modal-body').innerHTML = `
+    <div style="font-size:13px;margin-bottom:8px"><strong>Time:</strong> ${override.time || client.time || '—'}</div>
+    <div style="font-size:13px;margin-bottom:8px"><strong>Caregiver:</strong> ${override.caregiver || client.caregiver || '—'}</div>
+    ${override.cancelled ? '<div style="color:#c0392b;font-weight:600;margin-top:8px">This visit is cancelled.</div>' : ''}
+    <div style="margin-top:14px"><button class="btn btn-secondary btn-sm" onclick="closeDayModal()">Close</button></div>`;
+  document.getElementById('day-modal').style.display = 'flex';
+}
+
+function saveDayChanges() {
+  const time = document.getElementById('dm-time').value.trim();
+  const caregiver = document.getElementById('dm-caregiver').value.trim();
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+  const overrides = getMonthOverrides(dayModalClientId, year, month);
+  const existing = overrides[dayModalDay] || {};
+  saveMonthOverride(dayModalClientId, year, month, dayModalDay, {...existing, time, caregiver});
+  closeDayModal();
+  renderMonthly();
+}
+
+function cancelVisit() {
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+  const overrides = getMonthOverrides(dayModalClientId, year, month);
+  const existing = overrides[dayModalDay] || {};
+  saveMonthOverride(dayModalClientId, year, month, dayModalDay, {...existing, cancelled: true});
+  closeDayModal(); renderMonthly();
+}
+
+function restoreVisit() {
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+  const overrides = getMonthOverrides(dayModalClientId, year, month);
+  const existing = overrides[dayModalDay] || {};
+  delete existing.cancelled;
+  saveMonthOverride(dayModalClientId, year, month, dayModalDay, Object.keys(existing).length ? existing : null);
+  closeDayModal(); renderMonthly();
+}
+
+function addExtraVisit() {
+  const time = document.getElementById('dm-time').value.trim();
+  const caregiver = document.getElementById('dm-caregiver').value.trim();
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+  saveMonthOverride(dayModalClientId, year, month, dayModalDay, {added: true, time, caregiver});
+  closeDayModal(); renderMonthly();
+}
+
+function removeAddedVisit() {
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+  saveMonthOverride(dayModalClientId, year, month, dayModalDay, null);
+  closeDayModal(); renderMonthly();
+}
+
+function closeDayModal() {
+  document.getElementById('day-modal').style.display = 'none';
+  dayModalDay = null; dayModalMonIdx = null; dayModalClientId = null;
+}
+
+function printMonthly() {
+  const printContent = document.getElementById('monthly-print-list');
+  if (!printContent) return;
+  const w = window.open('', '_blank');
+  const css = 'body{font-family:Segoe UI,sans-serif;padding:24px;color:#1a1a1a}' +
+    '.print-visit-row{display:flex;gap:12px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px}' +
+    '.cancelled{color:#aaa;text-decoration:line-through}' +
+    '.print-month-header{border-bottom:2px solid #085041;padding-bottom:10px;margin-bottom:16px}';
+  w.document.write('<html><head><title>Monthly Schedule</title><style>' + css + '</style></head><body>');
+  w.document.write(printContent.innerHTML);
+  w.document.write('</body></html>');
+  w.document.close();
+  w.print();
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function showTab(id, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const panel = document.getElementById(id);
+  if (panel) panel.classList.add('active');
+  if (id === 'schedule') renderWeek();
+  if (id === 'availability') renderAvail();
+  if (id === 'printview') renderPrint();
+  if (id === 'sss') renderSSS();
+  if (id === 'monthly') { populateMonthlyClientSelect(); renderMonthly(); }
+  if (id === 'pgt') renderPGT();
+  if (id === 'private') renderPrivate();
+  if (id === 'notes') renderNotesClientList();
+  if (id === 'settings' && firebaseURL) {
+    document.getElementById('fb-url').value = firebaseURL;
+  }
+}
+</script>
+</body>
+</html>
