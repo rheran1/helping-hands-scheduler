@@ -811,10 +811,12 @@ function connectFirebase() {
 }
 
 function fetchFirebase(path, onSuccess, onError) {
-  fetch(firebaseURL + path + '.json')
-    .then(r => r.json())
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  fetch(firebaseURL + path + '.json', {signal: controller.signal})
+    .then(r => { clearTimeout(timeout); return r.json(); })
     .then(data => onSuccess(data))
-    .catch(e => onError && onError(e));
+    .catch(e => { clearTimeout(timeout); if (onError) onError(e); });
 }
 
 function writeFirebase(path, data, onDone) {
@@ -1576,8 +1578,22 @@ function saveFirebaseConfig() {
   }
   localStorage.setItem('hh_firebase_url', url);
   firebaseURL = url;
-  document.getElementById('fb-status').innerHTML = '<span style="color:#085041">Connecting...</span>';
-  connectFirebase();
+  document.getElementById('fb-status').innerHTML = '<span style="color:#085041">Testing connection...</span>';
+  // Test with a simple write first
+  fetch(url + '/ping.json', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(Date.now())
+  })
+  .then(r => r.json())
+  .then(() => {
+    document.getElementById('fb-status').innerHTML = '<span style="color:#085041">✓ Connected! Loading data...</span>';
+    connectFirebase();
+  })
+  .catch(e => {
+    document.getElementById('fb-status').innerHTML = '<span style="color:#c0392b">Connection failed — check your URL and Firebase rules are set to true</span>';
+    setSyncStatus('offline', 'Connection failed');
+  });
 }
 
 function savePins() {
