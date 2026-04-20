@@ -199,6 +199,34 @@ body{font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;color:#1a1a1a;ba
 .pick-search{width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;margin-bottom:10px;outline:none}
 .pick-search:focus{border-color:#085041}
 .add-caregiver-row{display:flex;gap:8px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap}
+
+/* MONTHLY SCHEDULE */
+.cal-wrap{overflow-x:auto;margin-bottom:16px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(36px,1fr));gap:2px;min-width:280px}
+.cal-head{background:#085041;color:#fff;padding:6px 4px;font-size:11px;font-weight:700;text-align:center;border-radius:4px}
+.cal-day{min-height:52px;border:1px solid #e8e6e0;border-radius:6px;padding:3px;position:relative;background:#fff;cursor:pointer;transition:all .15s}
+.cal-day:hover{border-color:#085041;background:#f0f9f5}
+.cal-day.empty{background:transparent;border:none;cursor:default}
+.cal-day.has-visit{background:#e1f5ee;border-color:#9fe1cb}
+.cal-day.has-visit:hover{background:#c8edd9}
+.cal-day.cancelled{background:#fde8e8;border-color:#f5c6c6}
+.cal-day.today{border:2px solid #085041}
+.cal-date{font-size:11px;font-weight:700;color:#333;line-height:1}
+.cal-visit{font-size:9px;color:#085041;margin-top:2px;line-height:1.3;font-weight:600}
+.cal-cancel{font-size:9px;color:#c0392b;margin-top:2px;line-height:1.3;text-decoration:line-through}
+.month-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.month-nav button{background:none;border:1px solid #ddd;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px;font-weight:600;color:#085041}
+.month-nav button:hover{background:#f0f9f5}
+.month-title{font-size:15px;font-weight:700;color:#085041}
+.visit-legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;align-items:center}
+.legend-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+.print-month{background:#fff;padding:20px}
+.print-month-header{border-bottom:2px solid #085041;padding-bottom:10px;margin-bottom:16px}
+.print-visit-row{display:flex;gap:12px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px}
+.print-visit-row.cancelled{color:#aaa;text-decoration:line-through}
+.day-modal-title{font-size:15px;font-weight:700;color:#085041;margin-bottom:12px}
+.day-visit-card{background:#e1f5ee;border-radius:8px;padding:10px 14px;margin-bottom:8px}
+.day-cancelled-card{background:#fde8e8;border-radius:8px;padding:10px 14px;margin-bottom:8px;text-decoration:line-through;color:#aaa}
 </style>
 </head>
 <body>
@@ -269,6 +297,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;color:#1a1a1a;ba
     <button class="tab" onclick="showTab('schedule',this)">Weekly schedule</button>
     <button class="tab" onclick="showTab('sin',this)">SIN / compliance</button>
     <button class="tab" onclick="showTab('availability',this)">Availability</button>
+    <button class="tab" onclick="showTab('monthly',this)">Monthly schedules</button>
     <button class="tab admin-only" id="tab-addclient" onclick="showTab('addclient',this)">+ Add client</button>
     <button class="tab admin-only" id="tab-addcg" onclick="showTab('addcg',this)">+ Add caregiver</button>
     <button class="tab" onclick="showTab('printview',this)">Print</button>
@@ -302,6 +331,18 @@ body{font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;color:#1a1a1a;ba
 
 
 
+
+  <!-- MONTHLY SCHEDULES -->
+  <div id="monthly" class="panel">
+    <div style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div class="fg" style="flex:1;min-width:200px">
+        <label style="font-size:12px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Select client</label>
+        <select id="monthly-client-select" onchange="renderMonthly()" style="padding:8px 12px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a;font-size:13px;outline:none"></select>
+      </div>
+      <button class="btn btn-primary" onclick="printMonthly()">Print schedule</button>
+    </div>
+    <div id="monthly-content"></div>
+  </div>
   <!-- PGT CLIENTS -->
   <div id="pgt" class="panel">
     <div style="background:#eeedfe;border:1px solid #c5c0f5;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px">
@@ -463,6 +504,14 @@ body{font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;color:#1a1a1a;ba
 </div>
 
 
+
+<!-- DAY EDIT MODAL -->
+<div class="modal-overlay" id="day-modal" style="display:none">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-title"><span id="day-modal-title">Visit details</span><button class="modal-close" onclick="closeDayModal()">×</button></div>
+    <div id="day-modal-body"></div>
+  </div>
+</div>
 <!-- SCHEDULE CELL MODAL -->
 <div class="modal-overlay" id="schedule-modal" style="display:none">
   <div class="schedule-modal">
@@ -902,6 +951,7 @@ function renderAll() {
   renderAvail();
   populateCaregiverDropdowns();
   populatePrintSelect();
+  populateMonthlyClientSelect();
   renderNewClients();
   renderNewCGs();
 }
@@ -1088,6 +1138,7 @@ function addCaregiverToSchedule() {
   saveWeekly();
   renderWeek();
   populatePrintSelect();
+  populateMonthlyClientSelect();
   sel.value = '';
 }
 
@@ -1097,6 +1148,7 @@ function removeCaregiverFromSchedule(wi) {
   saveWeekly();
   renderWeek();
   populatePrintSelect();
+  populateMonthlyClientSelect();
 }
 
 function removeShiftItem(wi, dk, si) {
@@ -1855,6 +1907,288 @@ function deleteNoteModal(clientId, index) {
   renderPGT(); renderPrivate();
 }
 
+
+// ─── MONTHLY SCHEDULES ────────────────────────────────────────────────────────
+let currentMonthDate = new Date();
+currentMonthDate.setDate(1);
+
+function populateMonthlyClientSelect() {
+  const sel = document.getElementById('monthly-client-select');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Select a client —</option>' +
+    appData.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+}
+
+function renderMonthly() {
+  const clientId = document.getElementById('monthly-client-select').value;
+  if (!clientId) { document.getElementById('monthly-content').innerHTML = '<div style="font-size:13px;color:#aaa;font-style:italic;padding:20px 0">Select a client to view their monthly schedule.</div>'; return; }
+  const client = appData.clients.find(c => c.id === clientId);
+  if (!client) return;
+  renderMonthlyCalendar(client);
+}
+
+function getRecurringDays(client) {
+  // Work out which days of week client has recurring visits from weekly schedule
+  const recurringDays = [];
+  appData.weekly.forEach(w => {
+    DAY_KEYS.forEach((dk, di) => {
+      const shifts = w.shifts[dk] || [];
+      if (shifts.some(s => s.toLowerCase().includes(client.name.toLowerCase().split(' ')[0].toLowerCase()) ||
+          client.name.toLowerCase().includes(s.replace(/\s*\([^)]*\)/,'').trim().toLowerCase()))) {
+        if (!recurringDays.includes(di)) recurringDays.push(di); // 0=Mon...6=Sun
+      }
+    });
+  });
+  // Also infer from frequency
+  if (!recurringDays.length && client.freq) {
+    const f = client.freq.toLowerCase();
+    if (f.includes('daily')) return [0,1,2,3,4,5,6];
+    if (f.includes('mon') && f.includes('wed')) return [0,2];
+    if (f.includes('mon') && f.includes('fri')) return [0,4];
+    if (f.includes('tue') && f.includes('thu')) return [1,3];
+    if (f.includes('weekly')) return [0]; // default Monday
+    if (f.includes('twice a week')) return [0,3];
+    if (f.includes('3x')) return [0,2,4];
+    if (f.includes('4x')) return [0,1,2,3];
+  }
+  return recurringDays;
+}
+
+function getMonthOverrides(clientId, year, month) {
+  // Get manual overrides stored in progressNotes under key 'schedule_YYYY_MM'
+  const key = 'schedule_' + year + '_' + String(month+1).padStart(2,'0');
+  if (!appData.progressNotes) appData.progressNotes = {};
+  if (!appData.progressNotes[clientId + '_' + key]) return {};
+  try { return JSON.parse(appData.progressNotes[clientId + '_' + key]); } catch(e) { return {}; }
+}
+
+function saveMonthOverride(clientId, year, month, day, data) {
+  const key = 'schedule_' + year + '_' + String(month+1).padStart(2,'0');
+  const storeKey = clientId + '_' + key;
+  if (!appData.progressNotes) appData.progressNotes = {};
+  let overrides = {};
+  try { overrides = JSON.parse(appData.progressNotes[storeKey] || '{}'); } catch(e) {}
+  if (data === null) { delete overrides[day]; } else { overrides[day] = data; }
+  appData.progressNotes[storeKey] = JSON.stringify(overrides);
+  if (firebaseURL) writeFirebase('/progressNotes/' + storeKey, appData.progressNotes[storeKey]);
+  else saveLocal();
+}
+
+function renderMonthlyCalendar(client) {
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+  const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const today = new Date();
+  const recurringDays = getRecurringDays(client);
+  const overrides = getMonthOverrides(client.id, year, month);
+  const isAdmin = currentRole === 'admin';
+
+  // Build visit list for printable schedule
+  const visitDates = [];
+
+  let html = `
+    <div class="month-nav">
+      <button onclick="changeMonth(-1)">← Prev</button>
+      <div class="month-title">${currentMonthDate.toLocaleDateString('en-CA',{month:'long',year:'numeric'})}</div>
+      <button onclick="changeMonth(1)">Next →</button>
+    </div>
+    <div class="visit-legend">
+      <div style="display:flex;align-items:center;gap:4px"><div class="legend-dot" style="background:#e1f5ee;border:1px solid #9fe1cb"></div><span>Scheduled visit</span></div>
+      <div style="display:flex;align-items:center;gap:4px"><div class="legend-dot" style="background:#fde8e8;border:1px solid #f5c6c6"></div><span>Cancelled</span></div>
+      <div style="display:flex;align-items:center;gap:4px"><div class="legend-dot" style="background:#fff3cd;border:1px solid #ffc107"></div><span>Added visit</span></div>
+    </div>
+    <div class="cal-wrap"><div class="cal">`;
+
+  // Day headers - start Monday
+  ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d => {
+    html += `<div class="cal-head">${d}</div>`;
+  });
+
+  // Blank cells - adjust for Monday start (getDay returns 0=Sun)
+  const startBlank = firstDay === 0 ? 6 : firstDay - 1;
+  for (let i = 0; i < startBlank; i++) html += '<div class="cal-day empty"></div>';
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month, d);
+    const dayOfWeek = date.getDay(); // 0=Sun
+    // Convert to Mon-based index: Mon=0...Sun=6
+    const monIdx = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const isToday = today.getFullYear()===year && today.getMonth()===month && today.getDate()===d;
+    const override = overrides[d];
+    const isRecurring = recurringDays.includes(monIdx);
+    const isCancelled = override && override.cancelled;
+    const isAdded = override && override.added;
+    const hasVisit = (isRecurring && !isCancelled) || isAdded;
+
+    let cls = 'cal-day';
+    if (isCancelled) cls += ' cancelled';
+    else if (hasVisit) cls += ' has-visit';
+    if (isToday) cls += ' today';
+    if (isAdded) cls = cls.replace('has-visit','') + ' has-visit'; 
+
+    const visitTime = override && override.time ? override.time : (client.time || '');
+    const caregiver = override && override.caregiver ? override.caregiver : client.caregiver;
+
+    if (hasVisit) visitDates.push({d, dayName: date.toLocaleDateString('en-CA',{weekday:'short'}), time: visitTime, caregiver, cancelled: false});
+    if (isCancelled) visitDates.push({d, dayName: date.toLocaleDateString('en-CA',{weekday:'short'}), time: visitTime, caregiver, cancelled: true});
+
+    const clickHandler = isAdmin ? `onclick="openDayModal(${d},${monIdx},'${client.id}')"` : `onclick="openDayModalView(${d},'${client.id}')"`;
+
+    html += `<div class="${cls}" ${clickHandler}>
+      <div class="cal-date">${d}</div>
+      ${isCancelled ? `<div class="cal-cancel">${visitTime||'Visit'}</div>` : ''}
+      ${hasVisit && !isCancelled ? `<div class="cal-visit">${visitTime||'Visit'}<br><span style="font-weight:400;font-size:8px">${caregiver.split('/')[0].trim()}</span></div>` : ''}
+      ${isAdded ? '<div style="font-size:8px;color:#856404;font-weight:700">ADDED</div>' : ''}
+    </div>`;
+  }
+
+  html += '</div></div>';
+
+  // Printable list
+  html += `<div id="monthly-print-list" class="print-month" style="margin-top:16px;border:1px solid #e8e6e0;border-radius:10px">
+    <div class="print-month-header">
+      <div style="font-size:16px;font-weight:700;color:#085041">${client.name}</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">${currentMonthDate.toLocaleDateString('en-CA',{month:'long',year:'numeric'})} · ${client.svc} · ${client.funding}</div>
+      <div style="font-size:12px;color:#666;margin-top:2px">Caregiver: ${client.caregiver}${client.backup?' · Backup: '+client.backup:''}</div>
+    </div>
+    ${visitDates.sort((a,b)=>a.d-b.d).map(v => `
+      <div class="print-visit-row ${v.cancelled?'cancelled':''}">
+        <div style="min-width:80px;font-weight:600">${v.dayName} ${String(v.d).padStart(2,'0')}</div>
+        <div style="min-width:80px;color:#666">${v.time||'—'}</div>
+        <div style="flex:1">${v.caregiver}</div>
+        ${v.cancelled ? '<div style="color:#c0392b;font-size:11px">CANCELLED</div>' : ''}
+      </div>`).join('')}
+    ${!visitDates.length ? '<div style="font-size:13px;color:#aaa;font-style:italic">No visits scheduled this month.</div>' : ''}
+    <div style="font-size:12px;color:#aaa;margin-top:12px;padding-top:10px;border-top:1px solid #eee">Total visits: ${visitDates.filter(v=>!v.cancelled).length}</div>
+  </div>`;
+
+  document.getElementById('monthly-content').innerHTML = html;
+}
+
+function changeMonth(dir) {
+  currentMonthDate.setMonth(currentMonthDate.getMonth() + dir);
+  renderMonthly();
+}
+
+let dayModalClientId = null, dayModalDay = null, dayModalMonIdx = null;
+
+function openDayModal(day, monIdx, clientId) {
+  dayModalDay = day; dayModalMonIdx = monIdx; dayModalClientId = clientId;
+  const client = appData.clients.find(c => c.id === clientId);
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+  const overrides = getMonthOverrides(clientId, year, month);
+  const override = overrides[day] || {};
+  const recurringDays = getRecurringDays(client);
+  const isRecurring = recurringDays.includes(monIdx);
+  const date = new Date(year, month, day);
+  const dateStr = date.toLocaleDateString('en-CA',{weekday:'long',month:'long',day:'numeric'});
+
+  document.getElementById('day-modal-title').textContent = dateStr;
+  document.getElementById('day-modal-body').innerHTML = `
+    <div style="font-size:13px;color:#666;margin-bottom:14px">
+      ${isRecurring ? 'This is a <strong>recurring visit day</strong> for '+client.name+'.' : 'No recurring visit on this day.'}
+    </div>
+    <div class="fg" style="margin-bottom:10px">
+      <label>Visit time</label>
+      <input type="text" id="dm-time" value="${override.time || client.time || ''}" placeholder="e.g. 10am–12pm">
+    </div>
+    <div class="fg" style="margin-bottom:14px">
+      <label>Caregiver</label>
+      <input type="text" id="dm-caregiver" value="${override.caregiver || client.caregiver || ''}" placeholder="Caregiver name">
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${isRecurring && !override.cancelled ? `<button class="btn btn-danger btn-sm" onclick="cancelVisit()">Cancel this visit</button>` : ''}
+      ${override.cancelled ? `<button class="btn btn-primary btn-sm" onclick="restoreVisit()">Restore visit</button>` : ''}
+      ${!isRecurring ? `<button class="btn btn-primary btn-sm" onclick="addExtraVisit()">Add visit this day</button>` : ''}
+      ${override.added ? `<button class="btn btn-danger btn-sm" onclick="removeAddedVisit()">Remove added visit</button>` : ''}
+      <button class="btn btn-primary btn-sm" onclick="saveDayChanges()">Save changes</button>
+      <button class="btn btn-secondary btn-sm" onclick="closeDayModal()">Close</button>
+    </div>`;
+  document.getElementById('day-modal').style.display = 'flex';
+}
+
+function openDayModalView(day, clientId) {
+  const client = appData.clients.find(c => c.id === clientId);
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+  const overrides = getMonthOverrides(clientId, year, month);
+  const override = overrides[day] || {};
+  const date = new Date(year, month, day);
+  const dateStr = date.toLocaleDateString('en-CA',{weekday:'long',month:'long',day:'numeric'});
+  document.getElementById('day-modal-title').textContent = dateStr;
+  document.getElementById('day-modal-body').innerHTML = `
+    <div style="font-size:13px;margin-bottom:8px"><strong>Time:</strong> ${override.time || client.time || '—'}</div>
+    <div style="font-size:13px;margin-bottom:8px"><strong>Caregiver:</strong> ${override.caregiver || client.caregiver || '—'}</div>
+    ${override.cancelled ? '<div style="color:#c0392b;font-weight:600;margin-top:8px">This visit is cancelled.</div>' : ''}
+    <div style="margin-top:14px"><button class="btn btn-secondary btn-sm" onclick="closeDayModal()">Close</button></div>`;
+  document.getElementById('day-modal').style.display = 'flex';
+}
+
+function saveDayChanges() {
+  const time = document.getElementById('dm-time').value.trim();
+  const caregiver = document.getElementById('dm-caregiver').value.trim();
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+  const overrides = getMonthOverrides(dayModalClientId, year, month);
+  const existing = overrides[dayModalDay] || {};
+  saveMonthOverride(dayModalClientId, year, month, dayModalDay, {...existing, time, caregiver});
+  closeDayModal();
+  renderMonthly();
+}
+
+function cancelVisit() {
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+  const overrides = getMonthOverrides(dayModalClientId, year, month);
+  const existing = overrides[dayModalDay] || {};
+  saveMonthOverride(dayModalClientId, year, month, dayModalDay, {...existing, cancelled: true});
+  closeDayModal(); renderMonthly();
+}
+
+function restoreVisit() {
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+  const overrides = getMonthOverrides(dayModalClientId, year, month);
+  const existing = overrides[dayModalDay] || {};
+  delete existing.cancelled;
+  saveMonthOverride(dayModalClientId, year, month, dayModalDay, Object.keys(existing).length ? existing : null);
+  closeDayModal(); renderMonthly();
+}
+
+function addExtraVisit() {
+  const time = document.getElementById('dm-time').value.trim();
+  const caregiver = document.getElementById('dm-caregiver').value.trim();
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+  saveMonthOverride(dayModalClientId, year, month, dayModalDay, {added: true, time, caregiver});
+  closeDayModal(); renderMonthly();
+}
+
+function removeAddedVisit() {
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+  saveMonthOverride(dayModalClientId, year, month, dayModalDay, null);
+  closeDayModal(); renderMonthly();
+}
+
+function closeDayModal() {
+  document.getElementById('day-modal').style.display = 'none';
+  dayModalDay = null; dayModalMonIdx = null; dayModalClientId = null;
+}
+
+function printMonthly() {
+  const printContent = document.getElementById('monthly-print-list');
+  if (!printContent) return;
+  const w = window.open('', '_blank');
+  w.document.write('<html><head><title>Monthly Schedule</title><style>body{font-family:Segoe UI,sans-serif;padding:24px;color:#1a1a1a}.print-visit-row{display:flex;gap:12px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px}.cancelled{color:#aaa;text-decoration:line-through}.print-month-header{border-bottom:2px solid #085041;padding-bottom:10px;margin-bottom:16px}</style></head><body>');
+  w.document.write(printContent.innerHTML);
+  w.document.write('</body></html>');
+  w.document.close();
+  w.print();
+}
+
 // ─── TABS ─────────────────────────────────────────────────────────────────────
 function showTab(id, btn) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -1866,6 +2200,7 @@ function showTab(id, btn) {
   if (id === 'availability') renderAvail();
   if (id === 'printview') renderPrint();
   if (id === 'sss') renderSSS();
+  if (id === 'monthly') { populateMonthlyClientSelect(); renderMonthly(); }
   if (id === 'pgt') renderPGT();
   if (id === 'private') renderPrivate();
   if (id === 'notes') renderNotesClientList();
